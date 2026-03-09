@@ -1,0 +1,185 @@
+ 
+.sar-narrative-container {
+  width: 100%;
+}
+ 
+.sar-narrative-box {
+ background-color: #85A0F91A;
+  border-radius: 12px;
+  padding: 5px 12px 15px 12px 12px;
+  font-size: 16px;
+  font-style: roboto;
+  color:#6D6D6D;
+  width: 42vw;
+  font-weight: 500;
+  max-height: 82vh;
+  height: 80vh;
+  overflow-y: auto;
+  border: 1px solid #d1d5db;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  text-align: left;
+  &::-webkit-scrollbar {
+    width: 6px;  /* Vertical scrollbar width */
+    height: 6px; /* Horizontal scrollbar height */
+  }
+
+  /* 2. Style the track (the background area) */
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1; /* Light background for the track */
+    border-radius: 10px;
+  }
+
+  /* 3. Style the thumb (the draggable element) */
+  &::-webkit-scrollbar-thumb {
+    background: #888; /* Grey color for the thumb */
+    border-radius: 10px;
+  }
+
+  /* 4. Style the thumb on hover for better UX */
+  &::-webkit-scrollbar-thumb:hover {
+    background: #555;
+  }
+
+}
+
+.sar-narrative-actions{
+  margin-left: 17vw;
+  display: flex;
+  border-top: 1px solid #ddd;
+}
+
+.sar-narrative-actions img {
+  height: 28px;
+} 
+
+        .sar-narrative-container {
+            padding: 16px;
+            background-color: #f7f9fc;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            max-height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sar-narrative-title {
+            color: #000048;
+            border-bottom: 2px solid #e0e6f1;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            font-family: roboto;
+            letter-spacing: 1px;
+        }
+
+      
+
+        .sar-narrative-actions {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 8px;
+            background-color: #ffffff;
+            padding: 5px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .sar-narrative-actions button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            transition: background-color 0.2s;
+            border-radius: 4px;
+        }
+
+        .sar-narrative-actions button:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .sar-narrative-actions button svg {
+            color: #000048; /* Ensuring icon color consistency */
+        }
+        
+
+        /* --- SArNarrative.css additions --- */
+
+.validation-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 16px;
+  font-family: roboto;
+}
+
+.validation-table th, .validation-table td {
+  border: 1px solid #ccc;
+  /* padding: 8px 12px; */
+  /* text-align: left; */
+  color: #000048;
+}
+
+/* --- Basic Table Styling (Ensure these exist or are adjusted) --- */
+.validation-table {
+  width: 100%;
+  border-collapse: collapse;
+  /* margin-top: 10px; */
+  /* margin-bottom: 15px; */
+  font-size: 14px;
+}
+
+.validation-table th, .validation-table td {
+  border: 1px solid #ccc;
+  padding: 10px 15px;
+  /* padding: 10px 15px; */
+  text-align: left;
+  border: 1px solid #ccc;
+}
+
+.validation-table .table-header {
+  /* background-color: #e0e0e0; */
+  background-color: #f0f0f8;
+  font-weight: bold;
+  text-align: center;
+  font-size: 18px;
+  color: #000048;
+}
+
+.validation-table td:first-child {
+  font-weight: bold;
+  width: 30%;
+  /* height: 10vh; */
+  background-color: #f7f7f7;
+}
+
+.narrative-placeholder{
+  color: #a0a0a0;
+  /* font-style: italic; */
+  opacity: 0.7;
+  font-family: roboto;
+  letter-spacing: 2px;
+}
+
+.address-verification-report {
+  margin-bottom: 2px; 
+}
+.loan-validation-report {
+  margin-bottom: 2px; 
+}
+
+/* If you want a visual separator between the two tables */
+.report-separator {
+  border: 0;
+  border-top: 1px solid #ccc; /* Light grey line */
+  margin: 25px 0;
+}
+
+/* Style for the placeholder text */
+.narrative-placeholder {
+  padding: 20px;
+  text-align: center;
+  color: #555;
+  border: 1px dashed #ccc;
+  border-radius: 4px;
+}

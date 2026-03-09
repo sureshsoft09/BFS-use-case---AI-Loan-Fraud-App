@@ -1,0 +1,182 @@
+/* .modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+} */
+
+.modal-content.graph-modal {
+  background: white;
+  /* padding: 25px; */
+  border-radius: 12px;
+  width: 80%;
+  height: 75%;
+  /* max-width: 800px; */
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+.modal-header-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #000048; /* Dark Navy from your image */
+  color: white;
+  /* padding: 12px 22px; */
+  display: flex; justify-content: space-between; align-items: center;
+  font-weight: 500;
+  font-family: 'Gellix';
+  font-size: 18px;
+  height: 45px; padding: 0 20px;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.graph-modal {
+  min-width: 600px;
+  /* border: 1px solid #e0e0e0; */
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  /* width: 100vw; */
+  /* height: 100vh; */
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.graph-modal {
+  background: white;
+  border-radius: 12px;
+  width: 700px; /* Specific width */
+  height: auto; /* Let content define height */
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
+
+.modal-header-card {
+  background: #000048;
+  color: white;
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center;
+  height: 50px; 
+  padding: 0 20px;
+}
+
+.modal-header-card h3 {
+  font-size: 16px;
+  margin: 0;
+  font-weight: 500;
+}
+
+.stream-close-x {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.stream-close-x img {
+  width: 14px;
+  filter: brightness(0) invert(1); /* Makes the icon white */
+}
+
+.graph-body {
+  padding: 15px 20px 40px 10px;
+}
+
+.graph-container {
+  width: 100%;
+  margin-bottom: 30px;
+}
+
+/* Custom Tooltip Styling to match your image */
+.custom-tooltip {
+  background: white;
+  padding: 10px 15px;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  text-align: center;
+  border: 1px solid #f0f0f0;
+}
+
+.tooltip-value {
+  color: #b33a3a; /* Reddish like your image tooltip */
+  font-weight: bold;
+  margin: 0;
+  font-size: 14px;
+}
+
+.tooltip-sub {
+  color: grey;
+  font-size: 11px;
+  margin: 0;
+}
+
+.graph-details-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-top: 40px;
+  margin-bottom: 30px;
+  gap: 10px;
+  padding: 0 10px;
+}
+
+.graph-detail-col {
+  flex: 1;
+  text-align: center;
+  padding: 0 6px;
+}
+
+.graph-detail-percent {
+  font-size: 1.7rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  font-family: 'Gellix', Arial, sans-serif;
+}
+
+.graph-detail-desc {
+  font-size: 1rem;
+  color: #000048;
+  font-family: 'Gellix', Arial, sans-serif;
+  line-height: 1.3;
+}
+
+/* Axis label color */
+.recharts-cartesian-axis-tick-value {
+  fill: #7373D8 !important;
+  font-size: 14px;
+  font-family: 'Gellix', Arial, sans-serif;
+  font-weight: 600;
+}

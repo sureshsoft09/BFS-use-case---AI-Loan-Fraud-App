@@ -1,0 +1,146 @@
+.description-box{
+    padding-top: 10px;
+/* background-color: #85A0F91A; */
+background-color: #0d3fe41a;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  overflow-y: hidden;
+  font: roboto;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.05);
+  line-height: 1; /* improved readability */
+  height: 72%;
+  width: 30vw;
+}
+
+/* .description-box h3, */
+.description-box h4,
+.description-box h6, 
+.description-box p{ 
+  margin: 2px; /* reduced margin for better spacing */
+  padding: 0;
+}
+
+.description-box h4,
+.description-box {
+  margin-top: 10px;
+  color: #000048;
+  font-family: roboto;
+  margin-bottom: 14px;
+}
+
+.description-box p {
+  padding-top:1px ;
+  font-size: 13px;
+  font-weight: 500;
+  color: #000048;
+  letter-spacing: 0.5px;
+}
+
+.agent-description{
+  /* letter-spacing: 2px; */
+  font-size: 16px;
+  font-weight: 700;
+  color: #000048; /* deep navy */
+}
+
+.progress-container {
+  width: 97%;
+  height: 17px;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+ 
+.logs-container{
+  overflow-y: auto;
+  font-family: "Gellix";
+  text-align: left;
+  font-size: 15px;
+  color: #d1d5db;
+}
+
+.text{
+  font-weight: 500;
+}
+
+.status-buttons {
+  display: flex;
+  gap: 16px;
+  margin: 10px 0px 16px 9vw;
+}
+ 
+.status-buttons label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+    font-family: roboto;
+    color: #000048;
+}
+
+.agent-action{
+    letter-spacing: 2px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #000048; /* deep navy */
+    padding: 5px 0px 20px 0px;
+}
+
+.activity-feed { 
+    margin-left: 14px;
+    padding: 0;
+}
+
+/* Update to remove extra top margin from the status box */
+.activity-item {
+    margin-top: 5px; /* Adjust as needed */
+    padding-top: 1px;
+}
+.activity-title{
+  margin-top: 5px;
+}
+
+.activity-time{
+  font-family: roboto;
+  font-size: 1.05em;
+  letter-spacing: 1px;
+  color: #000048;
+  margin-top: 6px;
+  /* margin-left: 1px; */
+}
+
+.process-stream-filename {
+  font-size: 0.8em;
+  color: #f90c14;
+  margin-left: 3px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+/* Styling for the static label part */
+.process-stream-label {
+  color: #000048; /* deep navy */
+  font-family: roboto;
+  font-size:0.90em; /* Example: The base font size */
+  font-weight: bold;
+  letter-spacing: 1px;
+  margin-left: 3.2vw;
+}
+
+/* Add these lines to define the container for the progress bar */
+.progress-bar-sidebar {
+    height: 8px; 
+    background-color: #e0e0e0; /* A light grey background */
+    /* border-radius: 4px; */
+    overflow: hidden; 
+    /* margin: 15px 20px; Add some margin for spacing */
+}
+
+.progress-fill-sidebar {
+    /* Keep the existing style and add height: 100% to fill the container */
+    background-color: rgb(9, 244, 29);
+    height: 100%; /* Important: makes the fill take the container's height */
+    transition: width 0.3s ease; /* Optional: for a smooth filling animation */
+}
+
+ 

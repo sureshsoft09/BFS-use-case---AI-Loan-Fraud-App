@@ -1,0 +1,47 @@
+
+.progress-container {
+  width: 97%;
+  height: 20px;
+  background-color: #e0e0e0;
+  border-radius: 6px;
+  border: 2px solid #ccc;
+  overflow: hidden;
+  position: relative;
+}
+ 
+.progress-bar {
+  height: 100%;
+  background-color: #35f23b; /* green */
+  /* padding: 0.5px 1px; */
+  transition: width 1s ease-in-out;
+  position: relative;
+}
+
+.progress-text {
+  position: absolute;
+  right: 5px; /* small padding from the edge of the bar */
+  top: 50%;
+  transform: translateY(-50%);
+  /* color: rgb(61, 68, 69); */
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+
+.applicant-box{
+  /* background-color: #85A0F91A; */
+  background-color: #0d3fe41a;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-family: roboto;
+  color: #333;
+  height: 15vh;
+  /* flex-grow: 1; */
+  overflow-y: auto; 
+   line-height: 1; 
+}
+
+ 

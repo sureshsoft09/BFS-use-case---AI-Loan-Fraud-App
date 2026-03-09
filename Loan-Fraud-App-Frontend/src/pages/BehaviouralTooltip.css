@@ -1,0 +1,81 @@
+/* The Anchor: This stays in the layout flow */
+.tooltip-wrapper {
+  /* position: relative; This is vital */
+  /* display: inline-flex; */
+  align-items: center;
+}
+
+.behavior-agent-container {
+  position: absolute;
+  z-index: 10000; /* Higher than the modal */
+  top: 100%; 
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 10px;
+  
+  /* Prevent the tooltip from inheriting text-align from the header */
+  text-align: left; 
+  
+  /* Ensure it doesn't get squashed */
+  min-width: 350px; 
+  pointer-events: none; /* Allows hover to pass through if needed */
+}
+
+/* IMPORTANT: Ensure the report-card doesn't hide the absolute tooltip */
+.report-card {
+  overflow: visible !important; 
+}
+
+
+.ba-title { margin-top: -6px; font-size: 1.2rem; font-weight: 600; color: white;}
+.ba-subtitle { margin: 5px 0 12px 0; color: white; font-size: 1rem; font-weight: 300;}
+.ba-divider { height: 1px; background: rgba(255, 255, 255, 0.15); margin-bottom: 15px; }
+
+.ba-row { 
+  display: flex; 
+  align-items: flex-start; 
+  margin-bottom: 12px; 
+  font-size: 0.95rem; 
+  line-height: 1.4; 
+}
+
+.ba-icon { width: 20px; font-weight: bold; flex-shrink: 0;color: red; }
+.ba-label { font-weight: bold; width: 65px; margin-right: 5px; flex-shrink: 0; }
+.ba-text { color: #ffffff; flex: 1; }
+
+/* Status Colors */
+.low .ba-label, .low .ba-icon { color: #00e676; }
+.medium .ba-label, .medium .ba-icon { color: #ffd600; }
+.high .ba-label, .high .icon { color: red; }
+
+
+/* Update the container to ensure it's forced visible */
+.behavior-agent-container {
+  /* position: absolute; */
+  display: block !important; /* Force display */
+  visibility: visible !important;
+  opacity: 1 !important;
+  
+  /* Positioning relative to the exclamation icon */
+  top: 221px; 
+  left: 82%;
+  transform: translateX(-50%);
+  
+  /* Visuals */
+  z-index: 9999; 
+  background-color: #020438;
+  width: 380px;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* IMPORTANT: The parent of the tooltip MUST allow the child to spill out */
+.tooltip-wrapper {
+  /* position: relative; */
+  overflow: visible !important;
+}
+
+/* .report-card, .modal-main {
+  overflow: visible !important;
+} */

@@ -1,0 +1,248 @@
+/* Container */
+.dashboard-container {
+  /* display: flex; //removed to fix sidebar issue */
+  height: 100vh;
+  width: 100%;
+  background-color: #f3f4f6;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 240px;
+  /* background-color: #000048;  */
+  background-color: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 10;
+  gap: 7px;
+  margin-top: 10px;
+  display: none;
+}
+
+/* Logo area */
+.logo-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 24px;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  /* justify-content: center; */
+  /* gap: 8px; */
+  /* margin-bottom: 1px; */
+}
+.logo-svg {
+  width: 52px;
+  height: 43px;
+  /* border-radius: 8px; */
+}
+.logo-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* Nav */
+.sidebar-nav {
+  flex: 1;
+  /* padding-right: 6px; */
+}
+
+.sidebar-nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 11px;
+  margin: 2px 0;
+  border-radius: 8px;
+  color: #000048;
+  font-family: poppins;
+  /* color: rgba(255, 255, 255, 0.8); */
+  /* margin-bottom: 10px; */
+  cursor: pointer;
+  /* transition: background-color 0.15s, transform 0.08s; */
+  transition: all 0.3s ease;
+  position: relative;
+  user-select: none;
+  /* outline: none; */
+}
+/* .sidebar-item:focus {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
+} */
+
+/* little square checkbox look */
+/* .sidebar-item .square {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  box-sizing: border-box;
+} */
+
+/* item label */
+.sidebar-item .item-label {
+  /* color: #f0f6fb; */
+  font-size: 14px;
+}
+
+/* active state: pill with light background and left connector */
+/*  */
+
+/* .sidebar-item.active {
+  color: #1a237e;
+
+  background-color: white;
+
+  font-weight: 600;
+
+  position: relative;
+
+  margin-right: 0;
+} */
+
+/* Active item extends into main content */
+
+/* .sidebar-item.active::before {
+  content: "";
+
+  position: absolute;
+
+  right: -20px;
+
+  top: 0;
+
+  bottom: 0;
+
+  width: 20px;
+
+  background-color: white;
+
+  z-index: 1;
+} */
+
+/* Top rounded corner for active item */
+
+/* .sidebar-item.active::after {
+  content: "";
+
+  position: absolute;
+
+  right: -20px;
+
+  top: -20px;
+
+  width: 20px;
+
+  height: 20px;
+
+  background: radial-gradient(circle at 0 100%, transparent 20px, white 20px);
+}
+
+/* Bottom rounded corner for active item */
+
+/* .sidebar-item.active {
+  overflow: visible;
+} */
+
+/* .sidebar-item.active ~ .sidebar-item:first-of-type::before,
+.sidebar-item.active:not(:last-child)::before {
+  content: "";
+
+  position: absolute;
+
+  right: -20px;
+
+  bottom: -22px;
+
+  width: 20px;
+
+  height: 20px;
+
+  background: radial-gradient(circle at 0 0, transparent 20px, white 20px);
+
+  z-index: 1;
+} */
+
+.sidebar-item {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.sidebar-item.active .item-label {
+  color: #7373D8;
+  font-weight: 600;
+}
+
+/* make the square dark on active */
+.sidebar-item.active .square {
+  background: #81f40e;
+  border-color: #07172f;
+}
+
+/* create the rounded connector effect - small pseudo */
+.sidebar-item.active::before {
+  content: "";
+  position: absolute;
+  left: 240px; /* sits at the right-side of the sidebar area — adjust if needed */
+} */\\
+
+/* main content layout */
+.main-content {
+  flex: 1;
+  padding: 28px;
+  display: flex;
+  gap: 28px;
+  background-color: #ffffff;
+  position: relative;
+  z-index: 1;
+}
+
+/* left pane column */
+.left-pane  {margin-top: 5vh;
+  flex: 1;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 4vh;
+  height: 100%;
+}
+
+
+/* right pane column */
+.right-pane {
+  flex: 2;
+  min-height: 104%;
+}
+
+/* small scrollbar styling for sidebar (optional) */
+.sidebar-nav::-webkit-scrollbar {
+  width: 8px;
+}
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+}
+
+.agent-icon {
+  width: 20px;  /* Adjust size as needed */
+  height: 20px;
+  object-fit: contain;
+  /* If icons should change color when active and they are SVGs, 
+     you might need a mask-image approach instead of <img> */
+}
+
+.sidebar-item.active .agent-icon {
+  /* Optional: filter to change icon color if they are single-color PNGs/SVGs */
+  /* filter: brightness(0) saturate(100%) invert(48%) sepia(79%) saturate(2476%) hue-rotate(190deg) brightness(118%) contrast(119%); */
+  filter: invert(50%) sepia(21%) saturate(2250%) hue-rotate(206deg) brightness(91%) contrast(85%);
+
+}

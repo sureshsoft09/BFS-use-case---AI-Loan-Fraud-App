@@ -1,0 +1,151 @@
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.admin-info {
+  text-align: right;
+}
+
+.admin-name {
+  font-size: 13px;
+  margin: 0;
+  font-weight: 600;
+}
+
+.admin-email {
+  font-size: 0.7rem;
+  margin: 0;
+  opacity: 0.8;
+}
+
+.profile-pic {
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  /* border: 1px solid #00e6e6; */
+}
+
+
+.main-navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #000048; /* Dark blue from image */
+  padding: 0 24px;
+  height: 55px;
+  color: white;
+  font-family: sans-serif;
+}
+
+/* Left, Center, and Right roughly equal width to help centering */
+.nav-left, .nav-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.nav-center {
+  flex: 2; /* Gives the middle more space */
+  display: flex;
+  justify-content: center;
+}
+
+/* Logo Styles */
+.logo-img {
+  height: 30px;
+  margin-right: 10px;
+}
+.brand-name {
+  font-family: 'Gellix';
+  font-size: 22px;
+  font-weight: 600;
+}
+
+/* Search Bar Styles */
+.search-container {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  width: 100%;
+  max-width: 600px;
+}
+
+.search-input-wrapper {
+  position: relative;
+  flex-grow: 1;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #000048;
+  font-size: 18px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 10px 10px 10px 40px;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+}
+
+.search-button {
+  background: transparent;
+  border: 1.5px solid #26EFE9;
+  color: white;
+  padding: 8px 25px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: 0.3s;
+}
+
+.search-button:hover {
+  background: rgba(0, 229, 255, 0.1);
+}
+
+/* Profile Styles */
+.nav-right {
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.admin-info {
+  text-align: right;
+}
+
+.admin-name {
+  font-size: 14px;
+  font-weight: bold;
+  margin: 0;
+}
+
+.admin-email {
+  font-size: 11px;
+  margin: 0;
+  opacity: 0.8;
+}
+
+.profile-pic {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.dropdown-arrow {
+  font-size: 10px;
+  color: #00e5ff;
+}

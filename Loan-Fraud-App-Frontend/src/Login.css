@@ -1,0 +1,334 @@
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  width: 100%;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  font-family: "Inter", sans-serif;
+  padding: 1rem;
+  box-sizing: border-box;
+  overflow: visible !important;
+}
+
+.login-container * {
+  overflow: visible !important;
+}
+
+.login-main {
+  width: 100%;
+  max-width: 1400px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  padding: 0;
+  box-sizing: border-box;
+  overflow: clip;
+}
+
+/* Top Header */
+.top-header {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 1.5rem 2rem;
+  background: linear-gradient(135deg, #000048 0%, #0066cc 100%);
+  border-radius: 16px 16px 0 0;
+}
+
+.logo {
+  width: auto;
+  height: 40px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+
+.header-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.solution-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+}
+
+.powered-by {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.powered-text {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.azure-brand {
+  color: white;
+  font-weight: 600;
+}
+
+.azure-platform {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+}
+
+/* Content Wrapper - Left and Right Split */
+.content-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  padding: 2rem;
+}
+
+/* Left Section - Fraud Detection System */
+.left-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.solution-overview {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  padding: 1.5rem;
+  height: 100%;
+}
+
+.overview-title {
+  font-size: 1.3rem;
+  color: #000048;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+/* Agent Features */
+.agent-features {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: white;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  border: 1px solid #e0e0e0;
+}
+
+.feature-item:hover {
+  border-color: #0078D4;
+  transform: translateX(5px);
+  box-shadow: 0 4px 12px rgba(0, 120, 212, 0.1);
+}
+
+.feature-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.feature-content {
+  flex: 1;
+}
+
+.feature-content h4 {
+  font-size: 0.95rem;
+  color: #000048;
+  margin: 0 0 0.25rem 0;
+  font-weight: 600;
+}
+
+.feature-content p {
+  font-size: 0.8rem;
+  color: #666;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Right Section - Persona Selection */
+.right-section {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.persona-selection {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 2px solid #e0e0e0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.persona-title {
+  font-size: 1.5rem;
+  color: #000048;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.persona-subtitle {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.persona-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex: 1;
+}
+
+.persona-button {
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  text-align: left;
+}
+
+.persona-button:hover {
+  border-color: #0078D4;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 120, 212, 0.15);
+}
+
+.persona-button.loan-submitter:hover {
+  background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%);
+}
+
+.persona-button.bank-manager:hover {
+  background: linear-gradient(135deg, #fff5f0 0%, #ffe6e0 100%);
+}
+
+.persona-icon {
+  font-size: 2.5rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.persona-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  flex: 1;
+}
+
+.persona-label {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #000048;
+  display: block;
+}
+
+.persona-desc {
+  font-size: 0.85rem;
+  color: #666;
+  display: block;
+}
+
+/* Technology Stack */
+.technology-stack {
+  text-align: center;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.tech-label {
+  font-size: 0.75rem;
+  color: #888;
+  margin-bottom: 0.5rem;
+}
+
+.tech-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.tech-badge {
+  background: #000048;
+  color: white;
+  padding: 0.3rem 0.6rem;
+  border-radius: 16px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .content-wrapper {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  .solution-title {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .login-container {
+    padding: 1rem;
+  }
+
+  .login-main {
+    padding: 2rem 1.5rem;
+  }
+
+  .solution-title {
+    font-size: 1.75rem;
+  }
+
+  .persona-title {
+    font-size: 1.5rem;
+  }
+
+  .persona-button {
+    flex-direction: column;
+    text-align: center;
+    padding: 1.25rem;
+  }
+
+  .persona-icon {
+    font-size: 2.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .solution-title {
+    font-size: 1.5rem;
+  }
+
+  .feature-item {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .tech-badges {
+    flex-direction: column;
+    align-items: center;
+  }
+}
