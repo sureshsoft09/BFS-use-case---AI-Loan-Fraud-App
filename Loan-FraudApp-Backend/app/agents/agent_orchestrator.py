@@ -17,7 +17,7 @@ import asyncio
 import json
 from typing import List, Dict, Optional, Any
 from dotenv import load_dotenv
-from azure.identity import DefaultAzureCredential
+from azure.identity import AzureCliCredential, DefaultAzureCredential
 from azure.ai.agents import AgentsClient
 from agent_framework.azure import AzureAIAgentClient
 from agent_framework.orchestrations import ConcurrentBuilder
@@ -48,25 +48,25 @@ AGENT_CONFIGS = {
     'behavioural': {
         'temperature': 0.3,  # Lower for consistent behavioral pattern analysis
         'top_p': 0.9,
-        'max_tokens': 4000,
+        #'max_tokens': 4000,
         'description': 'Analyzes behavioral and biometric patterns during loan application submission'
     },
     'device_fingerprint': {
         'temperature': 0.3,  # Lower for consistent device analysis
         'top_p': 0.9,
-        'max_tokens': 4000,
+        #'max_tokens': 4000,
         'description': 'Analyzes device fingerprints, IP addresses, and network characteristics'
     },
     'fraud_ring': {
         'temperature': 0.4,  # Slightly higher for pattern recognition
         'top_p': 0.95,
-        'max_tokens': 6000,
+        #'max_tokens': 6000,
         'description': 'Detects fraud rings and organized fraud network patterns'
     },
     'kyc': {
         'temperature': 0.3,  # Lower for consistent document verification
         'top_p': 0.9,
-        'max_tokens': 5000,
+        #'max_tokens': 5000,
         'description': 'Verifies KYC documents and validates identity information'
     }
 }
@@ -89,7 +89,15 @@ class AgentOrchestrator:
         """Initialize the orchestrator with Azure credentials and configuration."""
         load_dotenv()
         
-        self.credential = DefaultAzureCredential()
+        # Use AzureCliCredential to use current Azure CLI session
+        # This avoids tenant mismatch issues from cached credentials
+        try:
+            self.credential = AzureCliCredential()
+            print("✓ Using Azure CLI credentials")
+        except Exception as e:
+            print(f"⚠ Azure CLI credentials not available, falling back to DefaultAzureCredential: {e}")
+            self.credential = DefaultAzureCredential()
+        
         self.project_endpoint = os.getenv("AZURE_AI_PROJECT_ENDPOINT")
         self.model_deployment_name = os.getenv("AZURE_AI_MODEL_DEPLOYMENT_NAME")
         
@@ -328,52 +336,34 @@ class AgentOrchestrator:
         print(f"\nExecuting all agents in parallel...")
 
         agent_results = {}
-        responded_agents = []
-        aggregated_result = ""
-
-        # Run concurrent orchestration with streaming
-        async for event in self.workflow.run_stream(loan_application_data):
-            # Intermediate outputs - streaming text from individual agents
-            if event.type == "output" and isinstance(event.data, AgentResponseUpdate):
-                # Individual agent streaming updates (we can log these if needed)
-                if event.data.agent_name:
-                    pass  # Optionally log progress per agent
-            
-            # Intermediate outputs - full response from individual agents
-            elif event.type == "output" and isinstance(event.data, AgentResponse):
-                for msg in event.data.messages:
-                    if msg.author_name and msg.author_name != "user":
-                        responded_agents.append(msg.author_name)
-                        print(f"  ✓ {msg.author_name} completed")
-            
-            # Final aggregated output (string from our custom aggregator)
-            elif event.type == "output" and isinstance(event.data, str):
-                aggregated_result = event.data
-            
-            # Default output: list[Message] when no custom aggregator (fallback)
-            elif event.type == "output" and isinstance(event.data, list):
-                for item in event.data:
-                    if isinstance(item, Message) and item.text:
-                        agent_name = item.author_name or "unknown"
-                        if agent_name != "user":
-                            if agent_name not in agent_results:
-                                agent_results[agent_name] = ""
-                            agent_results[agent_name] += item.text
-
-        print(f"\n✓ All agents completed analysis")
         
-        # Parse aggregated results
-        if aggregated_result:
+        # Run concurrent orchestration - all agents execute in parallel
+        result = await self.workflow.run(loan_application_data)
+        
+        # Process the result
+        if isinstance(result, str):
+            # Aggregated result from our custom aggregator
             try:
-                agent_results = json.loads(aggregated_result)
+                agent_results = json.loads(result)
+                print(f"\n✓ All agents completed analysis")
                 print(f"  Received aggregated results from {len(agent_results)} agents\n")
             except json.JSONDecodeError:
                 print(f"  Warning: Could not parse aggregated results, using raw data\n")
-                agent_results = {"raw": aggregated_result}
-        
-        if responded_agents:
-            unique_agents = sorted(set(responded_agents))
-            print(f"  ⚡ Parallel execution: {', '.join(unique_agents)}\n")
+                agent_results = {"raw": result}
+        elif isinstance(result, list):
+            # List of messages (fallback if no aggregator)
+            for item in result:
+                if isinstance(item, Message) and item.text:
+                    agent_name = item.author_name or "unknown"
+                    if agent_name != "user":
+                        if agent_name not in agent_results:
+                            agent_results[agent_name] = ""
+                        agent_results[agent_name] += item.text
+            print(f"\n✓ All agents completed analysis")
+            print(f"  Processed {len(agent_results)} agent responses\n")
+        else:
+            print(f"\n✓ Analysis completed with unexpected result type: {type(result)}\n")
+            agent_results = {"raw": str(result)}
 
         # Aggregate results and calculate overall risk
         return self._aggregate_results(agent_results)

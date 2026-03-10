@@ -16,7 +16,7 @@ export const AZURE_CONFIG = {
     CREATE_LOAN: '/api/loans/create',
     UPDATE_LOAN_STATUS: '/api/loans/{id}/status',
     GET_LOAN: '/api/loans/{id}',
-    SUBMIT_LOAN: '/api/loan/submit',
+    SUBMIT_LOAN: '/api/loans/{id}/submit',
     GET_APPLICATIONS: '/api/loan/applications',
     GET_APPLICATION_DETAILS: '/api/loan/application',
     

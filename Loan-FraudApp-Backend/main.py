@@ -4,9 +4,12 @@ Main API endpoints for loan application management and fraud analysis
 """
 import os
 import time
+import json
+import logging
 from typing import List, Optional
 from datetime import datetime
 from io import BytesIO
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -24,7 +27,9 @@ from app.models.schemas import (
     ApplicationStatus,
     StatusUpdateRequest,
     BiometricsData,
-    DeviceFingerprintData
+    DeviceFingerprintData,
+    AgentAnalysisResult,
+    SubmitApplicationResponse
 )
 
 # Import services
@@ -32,15 +37,74 @@ from app.services.cosmos_service import get_cosmos_service
 from app.services.blob_service import get_blob_service
 
 # Import agent orchestrator
-from app.agents.agent_orchestrator import run_loan_fraud_detection
+from app.agents.agent_orchestrator import AgentOrchestrator
 
 load_dotenv()
 
-# Initialize FastAPI app
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Suppress verbose Azure SDK logs
+logging.getLogger("azure.identity").setLevel(logging.WARNING)
+logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.WARNING)
+logging.getLogger("azure.ai").setLevel(logging.WARNING)
+logging.getLogger("azure.cosmos").setLevel(logging.WARNING)
+logging.getLogger("azure.cosmos._cosmos_http_logging_policy").setLevel(logging.WARNING)
+
+# Global agent orchestrator instance
+global_orchestrator: Optional[AgentOrchestrator] = None
+
+
+async def initialize_agent_service():
+    """Initialize the agent orchestrator at application startup"""
+    global global_orchestrator
+    try:
+        logger.info("Initializing Agent Orchestrator...")
+        global_orchestrator = AgentOrchestrator()
+        await global_orchestrator.setup_agents()
+        await global_orchestrator.initialize_workflow()
+        logger.info("✓ Agent Orchestrator initialized successfully")
+    except Exception as e:
+        logger.error(f"✗ Failed to initialize Agent Orchestrator: {str(e)}")
+        raise
+
+
+async def shutdown_agent_service():
+    """Clean up agent orchestrator at application shutdown"""
+    global global_orchestrator
+    if global_orchestrator:
+        try:
+            logger.info("Cleaning up Agent Orchestrator...")
+            await global_orchestrator.cleanup()
+            logger.info("✓ Agent Orchestrator cleaned up")
+        except Exception as e:
+            logger.error(f"Error during cleanup: {str(e)}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    FastAPI lifespan handler.
+    - Startup: initializes the AgentOrchestrator once (creates agents + workflow).
+    - Shutdown: cleans up the orchestrator.
+    """
+    logger.info("Application startup: initializing agent service...")
+    await initialize_agent_service()
+    logger.info("Agent service ready. API is accepting requests.")
+
+    yield  # Application runs here
+
+    logger.info("Application shutdown: cleaning up agent service...")
+    await shutdown_agent_service()
+
+
+# Initialize FastAPI app with lifespan handler
 app = FastAPI(
     title="Loan Fraud Detection API",
     description="AI-Powered Multi-Agent Fraud Analysis System using Microsoft Agent Framework",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS configuration
@@ -90,6 +154,203 @@ async def health_check():
 # ============================================================================
 # LOAN APPLICATION ENDPOINTS
 # ============================================================================
+
+async def run_fraud_analysis_background(
+    loan_app_id: str,
+    db_service,
+    storage_service
+):
+    """
+    Background task to run comprehensive fraud analysis
+    
+    This function runs asynchronously in the background after user receives
+    success confirmation. Results are stored in database for manager review.
+    """
+    try:
+        print(f"\n{'='*80}")
+        print(f"BACKGROUND FRAUD ANALYSIS STARTED: {loan_app_id}")
+        print(f"{'='*80}\n")
+        
+        # Step 1: Retrieve application data
+        print("Step 1: Retrieving loan application from database...")
+        application = db_service.get_loan_application(loan_app_id)
+        if not application:
+            print(f"  ✗ Application not found: {loan_app_id}")
+            return
+        
+        print(f"  ✓ Application found")
+        
+        # Step 2: Collect all data from database
+        print("\nStep 2: Collecting all application data from database...")
+        applicant_info = application.get("applicant_info", {})
+        loan_details = application.get("loan_details", {})
+        biometrics_history = application.get("biometrics_history", [])
+        device_fingerprint_history = application.get("device_fingerprint_history", [])
+        documents_metadata = application.get("documents", [])
+        
+        print(f"  ✓ Applicant info: {applicant_info.get('first_name', 'N/A')} {applicant_info.get('last_name', 'N/A')}")
+        print(f"  ✓ Loan amount: ${loan_details.get('loan_amount', 0):,.2f}")
+        print(f"  ✓ Biometrics records: {len(biometrics_history)}")
+        print(f"  ✓ Device fingerprint records: {len(device_fingerprint_history)}")
+        print(f"  ✓ Documents metadata: {len(documents_metadata)}")
+        
+        # Step 3: Retrieve all document contents from blob storage
+        print("\nStep 3: Retrieving all document contents from blob storage...")
+        documents_with_content = []
+        if documents_metadata:
+            try:
+                documents_with_content = storage_service.get_all_document_contents(loan_app_id)
+                print(f"  ✓ Retrieved {len(documents_with_content)} documents with content")
+                
+                for doc in documents_with_content:
+                    print(f"    - {doc.get('file_name')} ({doc.get('file_size')} bytes)")
+            except Exception as doc_error:
+                print(f"  ⚠ Warning: Could not retrieve document contents: {str(doc_error)}")
+                documents_with_content = documents_metadata
+        
+        # Step 4: Structure data into separate datasets for each agent
+        print("\nStep 4: Structuring data for concurrent agent analysis...")
+        
+        # Dataset for Behavioral Agent
+        behavioral_dataset = {
+            "biometrics_history": biometrics_history,
+            "applicant_info": {
+                "name": f"{applicant_info.get('first_name', '')} {applicant_info.get('last_name', '')}",
+                "email": applicant_info.get('email', ''),
+                "phone": applicant_info.get('phone', '')
+            },
+            "form_submission_count": len(biometrics_history)
+        }
+        
+        # Dataset for Device Fingerprint Agent
+        device_fingerprint_dataset = {
+            "device_fingerprint_history": device_fingerprint_history,
+            "application_details": {
+                "loan_amount": loan_details.get('loan_amount', 0),
+                "loan_purpose": loan_details.get('loan_purpose', ''),
+                "submission_time": application.get('created_at', '')
+            },
+            "device_change_count": len(device_fingerprint_history)
+        }
+        
+        # Dataset for Fraud Ring Agent
+        fraud_ring_dataset = {
+            "applicant_info": applicant_info,
+            "device_fingerprint_history": device_fingerprint_history,
+            "biometrics_history": biometrics_history,
+            "loan_details": loan_details,
+            "created_at": application.get('created_at', ''),
+            "updated_at": application.get('updated_at', '')
+        }
+        
+        # Dataset for KYC Agent (with document contents)
+        kyc_dataset = {
+            "applicant_info": applicant_info,
+            "documents": documents_with_content,
+            "document_count": len(documents_with_content),
+            "loan_amount": loan_details.get('loan_amount', 0)
+        }
+        
+        # Complete dataset for all agents
+        complete_dataset = {
+            "loan_app_id": loan_app_id,
+            "applicant_info": applicant_info,
+            "loan_details": loan_details,
+            "behavioral_data": behavioral_dataset,
+            "device_fingerprint_data": device_fingerprint_dataset,
+            "fraud_ring_data": fraud_ring_dataset,
+            "kyc_data": kyc_dataset,
+            "biometrics_history": biometrics_history,
+            "device_fingerprint_history": device_fingerprint_history,
+            "documents": documents_with_content,
+            "created_at": application.get('created_at', ''),
+            "status": "submitted"
+        }
+        
+        print(f"  ✓ Data structured for all agents")
+        print(f"    - Behavioral Agent: {len(biometrics_history)} biometric records")
+        print(f"    - Device Fingerprint Agent: {len(device_fingerprint_history)} device records")
+        print(f"    - Fraud Ring Agent: Complete application data")
+        print(f"    - KYC Agent: {len(documents_with_content)} documents with content")
+        
+        # Step 5: Run concurrent fraud detection analysis
+        print(f"\nStep 5: Running concurrent fraud detection agents...")
+        print(f"  Using global orchestrator with pre-initialized agents...")
+        
+        start_time = time.time()
+        
+        try:
+            # Use the global orchestrator instance (already initialized at startup)
+            if not global_orchestrator:
+                raise RuntimeError("Agent orchestrator not initialized")
+            
+            # Pass the complete dataset to the orchestrator
+            analysis_results = await global_orchestrator.run_workflow(json.dumps(complete_dataset))
+        except Exception as agent_error:
+            print(f"  ✗ Agent analysis failed: {str(agent_error)}")
+            # Update status to indicate analysis failure
+            db_service.update_loan_application(
+                loan_app_id, 
+                {
+                    "status": "analysis_failed",
+                    "analysis_error": str(agent_error)
+                }
+            )
+            return
+        
+        processing_time = time.time() - start_time
+        print(f"  ✓ Agent analysis completed in {processing_time:.2f} seconds")
+        
+        # Step 6: Extract individual agent results
+        print(f"\nStep 6: Processing agent analysis results...")
+        
+        overall_risk_score = analysis_results.get("overall_risk_score", 50.0)
+        overall_recommendation = analysis_results.get("overall_recommendation", "MANUAL_REVIEW")
+        application_status = analysis_results.get("application_status", "under_review")
+        
+        print(f"  Individual Agent Results:")
+        agent_analyses_dict = analysis_results.get("agent_analyses", {})
+        for agent_name, agent_data in agent_analyses_dict.items():
+            risk_score = agent_data.get("risk_score", 0)
+            print(f"    - {agent_name}: Risk Score = {risk_score}/100")
+        
+        print(f"\n  Overall Risk Score: {overall_risk_score}/100")
+        print(f"  Overall Recommendation: {overall_recommendation}")
+        print(f"  Application Status: {application_status}")
+        
+        # Step 7: Store results in database
+        print(f"\nStep 7: Storing analysis results in database...")
+        
+        db_service.update_detailed_agent_analysis(
+            loan_app_id=loan_app_id,
+            agent_analyses=analysis_results,
+            overall_score=overall_risk_score,
+            overall_status=application_status
+        )
+        
+        print(f"  ✓ Results stored in database")
+        print(f"    - Overall score: {overall_risk_score}/100")
+        print(f"    - Status: {application_status}")
+        print(f"    - Individual agent scores: {len(agent_analyses_dict)}")
+        
+        print(f"\n{'='*80}")
+        print(f"BACKGROUND FRAUD ANALYSIS COMPLETED: {loan_app_id}")
+        print(f"{'='*80}\n")
+        
+    except Exception as e:
+        print(f"\n✗ Background fraud analysis error for {loan_app_id}: {str(e)}")
+        try:
+            # Update status to indicate analysis failure
+            db_service.update_loan_application(
+                loan_app_id, 
+                {
+                    "status": "analysis_failed",
+                    "analysis_error": str(e)
+                }
+            )
+        except:
+            pass  # If we can't update the status, just log and continue
+
 
 @app.post("/api/loans/create", response_model=LoanApplicationResponse)
 async def create_loan_application(
@@ -237,6 +498,72 @@ async def update_loan_status(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating status: {str(e)}")
+
+
+@app.post("/api/loans/{loan_app_id}/submit")
+async def submit_loan_application(
+    loan_app_id: str,
+    background_tasks: BackgroundTasks,
+    db_service = Depends(get_db_service),
+    storage_service = Depends(get_storage_service)
+):
+    """
+    Submit a loan application for comprehensive fraud analysis
+    
+    This endpoint:
+    1. Validates the application exists and has required documents
+    2. Changes application status to "submitted"
+    3. Returns immediate success response to user
+    4. Runs fraud analysis in background (non-blocking):
+       - Collects all data from database
+       - Retrieves all document contents from blob storage
+       - Structures data for each agent (Behavioral, Device, Fraud Ring, KYC)
+       - Calls run_loan_fraud_detection with concurrent workflow
+       - Stores individual agent results in database
+    
+    The analysis results are stored in the database and visible only to managers
+    for review and approval decisions. User receives simple confirmation message.
+    
+    Returns:
+        Simple success message (analysis runs in background)
+    """
+    try:
+        # Verify loan application exists
+        application = db_service.get_loan_application(loan_app_id)
+        if not application:
+            raise HTTPException(status_code=404, detail=f"Loan application {loan_app_id} not found")
+        
+        # Validate that documents are uploaded
+        documents = application.get("documents", [])
+        if not documents or len(documents) == 0:
+            raise HTTPException(
+                status_code=400, 
+                detail="Cannot submit application without documents. Please upload at least one document."
+            )
+        
+        # Update status to "submitted" immediately
+        db_service.update_loan_application(loan_app_id, {"status": "submitted"})
+        
+        # Add fraud analysis task to background tasks (non-blocking)
+        background_tasks.add_task(
+            run_fraud_analysis_background,
+            loan_app_id,
+            db_service,
+            storage_service
+        )
+        
+        # Return immediate success response to user
+        return {
+            "loan_app_id": loan_app_id,
+            "status": "submitted",
+            "message": "Application submitted successfully! Your application is now under review.",
+            "note": "You will be notified once the review is complete."
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error submitting loan application: {str(e)}")
 
 
 @app.delete("/api/loans/{loan_app_id}")
@@ -684,9 +1011,13 @@ async def run_fraud_analysis(
         # Start timing
         start_time = time.time()
         
-        # Run fraud detection using agent orchestrator
+        # Run fraud detection using global orchestrator
         try:
-            analysis_results = await run_loan_fraud_detection(analysis_input)
+            if not global_orchestrator:
+                raise RuntimeError("Agent orchestrator not initialized")
+            
+            # Convert to JSON string for the orchestrator
+            analysis_results = await global_orchestrator.run_workflow(json.dumps(analysis_input))
         except Exception as agent_error:
             raise HTTPException(
                 status_code=500, 

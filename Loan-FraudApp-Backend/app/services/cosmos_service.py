@@ -283,6 +283,63 @@ class CosmosDBService:
             print(f"Error updating fraud analysis: {str(e)}")
             raise
     
+    def update_detailed_agent_analysis(self, loan_app_id: str, agent_analyses: Dict[str, Any], 
+                                      overall_score: float, overall_status: str) -> Dict[str, Any]:
+        """
+        Update detailed agent analysis results with individual agent scores and comments
+        
+        Args:
+            loan_app_id: Loan application ID
+            agent_analyses: Dictionary containing individual agent analyses with scores and comments
+            overall_score: Final aggregated fraud risk score
+            overall_status: Overall application status after analysis
+            
+        Returns:
+            Updated loan application document
+        """
+        try:
+            # Prepare detailed fraud analysis structure
+            fraud_analysis = {
+                "overall_risk_score": overall_score,
+                "overall_recommendation": agent_analyses.get("overall_recommendation", ""),
+                "application_status": overall_status,
+                "analyzed_at": datetime.utcnow().isoformat(),
+                "agent_results": {},
+                "critical_issues": agent_analyses.get("critical_issues", []),
+                "warnings": agent_analyses.get("warnings", []),
+                "summary": agent_analyses.get("summary", "")
+            }
+            
+            # Extract individual agent results with scores and comments
+            for agent_name, agent_data in agent_analyses.get("agent_analyses", {}).items():
+                fraud_analysis["agent_results"][agent_name] = {
+                    "risk_score": agent_data.get("risk_score", 0),
+                    "recommendation": agent_data.get("recommendation", ""),
+                    "comments": agent_data.get("comments", ""),
+                    "findings": agent_data.get("findings", []),
+                    "flag_count": agent_data.get("flag_count", 0),
+                    "analyzed_data": agent_data.get("analyzed_data", {}),
+                    "raw_response": agent_data  # Store full response
+                }
+            
+            # Update the document
+            updates = {
+                "fraud_analysis": fraud_analysis,
+                "status": overall_status,
+                "overall_fraud_score": overall_score
+            }
+            
+            updated_doc = self.update_loan_application(loan_app_id, updates)
+            print(f"Updated detailed agent analysis for: {loan_app_id}")
+            print(f"  Overall Score: {overall_score}")
+            print(f"  Number of agents analyzed: {len(fraud_analysis['agent_results'])}")
+            
+            return updated_doc
+        
+        except Exception as e:
+            print(f"Error updating detailed agent analysis: {str(e)}")
+            raise
+    
     def list_loan_applications(self, status: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
         """
         List loan applications with optional status filter

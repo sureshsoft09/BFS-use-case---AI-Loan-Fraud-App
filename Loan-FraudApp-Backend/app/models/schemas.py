@@ -144,3 +144,28 @@ class LoanApplicationDetail(BaseModel):
     fraud_analysis: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime
+
+
+class AgentAnalysisResult(BaseModel):
+    """Individual agent analysis result"""
+    agent_name: str
+    risk_score: float = Field(..., ge=0, le=100)
+    recommendation: str
+    comments: str
+    findings: List[str] = []
+    flag_count: int = 0
+
+
+class SubmitApplicationResponse(BaseModel):
+    """Response model for submitting a loan application for fraud analysis"""
+    loan_app_id: str
+    status: ApplicationStatus
+    overall_risk_score: float = Field(..., ge=0, le=100)
+    overall_recommendation: str
+    agent_analyses: List[AgentAnalysisResult]
+    critical_issues: List[str] = []
+    warnings: List[str] = []
+    summary: str
+    analyzed_at: datetime
+    processing_time_seconds: float
+    message: str

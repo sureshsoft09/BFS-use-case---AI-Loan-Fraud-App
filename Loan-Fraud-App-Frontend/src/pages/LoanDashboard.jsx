@@ -10,11 +10,6 @@ const LoanDashboard = () => {
   const [documentsUploaded, setDocumentsUploaded] = useState([]);
   const [loading, setLoading] = useState(false);
   
-  // Document extraction state
-  const [selectedDocType, setSelectedDocType] = useState('');
-  const [extractedDocs, setExtractedDocs] = useState([]);
-  const [extractionLoading, setExtractionLoading] = useState(false);
-  
   // Form data state
   const [formData, setFormData] = useState({
     // Personal Information
@@ -367,7 +362,7 @@ const LoanDashboard = () => {
     }
   };
 
-  // Final submission - change status to submitted
+  // Final submission - triggers background fraud analysis
   const handleFinalSubmit = async () => {
     if (documentsUploaded.length === 0) {
       Swal.fire({
@@ -381,18 +376,20 @@ const LoanDashboard = () => {
     setLoading(true);
 
     try {
-      // Update application status to submitted
-      const response = await fetch(getApiUrl(`/api/loans/${loanAppId}/status`), {
-        method: 'PUT',
+      // Submit application for fraud analysis (runs in background)
+      const response = await fetch(getApiUrl(`/api/loans/${loanAppId}/submit`), {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status: 'submitted' })
+        }
       });
 
       if (!response.ok) {
-        throw new Error('Failed to submit application');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to submit application');
       }
+
+      const result = await response.json();
 
       Swal.fire({
         icon: 'success',
@@ -406,7 +403,7 @@ const LoanDashboard = () => {
             <div style="font-size: 1.5rem; color: #28a745; font-weight: bold;">${loanAppId}</div>
           </div>
           <div style="margin-top: 15px; color: #666;">
-            You will be notified once the review is complete.
+            ${result.note || 'You will be notified once the review is complete.'}
           </div>
         `,
         confirmButtonColor: '#28a745'
@@ -424,66 +421,6 @@ const LoanDashboard = () => {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Extract documents by type
-  const handleExtractDocuments = async () => {
-    if (!selectedDocType) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'No Document Type Selected',
-        text: 'Please select a document type to extract.'
-      });
-      return;
-    }
-
-    setExtractionLoading(true);
-
-    try {
-      const endpoint = `/api/loans/${loanAppId}/documents/by-type/${selectedDocType}`;
-      const response = await fetch(getApiUrl(endpoint), {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to extract documents');
-      }
-
-      const data = await response.json();
-      setExtractedDocs(data.documents || []);
-
-      if (data.total_documents === 0) {
-        Swal.fire({
-          icon: 'info',
-          title: 'No Documents Found',
-          text: `No ${selectedDocType.replace('_', ' ')} documents found for this application.`
-        });
-      } else {
-        Swal.fire({
-          icon: 'success',
-          title: 'Documents Extracted!',
-          text: `Found ${data.total_documents} ${selectedDocType.replace('_', ' ')} document(s).`,
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false,
-          timer: 3000
-        });
-      }
-
-    } catch (error) {
-      console.error('Error extracting documents:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Extraction Failed',
-        text: error.message || 'Failed to extract documents. Please try again.'
-      });
-    } finally {
-      setExtractionLoading(false);
     }
   };
 
@@ -804,69 +741,6 @@ const LoanDashboard = () => {
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-              
-              {/* Document Extraction by Type */}
-              {documentsUploaded.length > 0 && (
-                <div className="document-extraction-section">
-                  <h4 className="extraction-title">Extract Documents by Type</h4>
-                  <p className="extraction-subtitle">Select a document type to view and download all documents of that type</p>
-                  
-                  <div className="extraction-controls">
-                    <select 
-                      className="form-select"
-                      value={selectedDocType}
-                      onChange={(e) => setSelectedDocType(e.target.value)}
-                      disabled={extractionLoading}
-                    >
-                      <option value="">Select document type</option>
-                      <option value="identity_proof">Identity Proof</option>
-                      <option value="address_proof">Address Proof</option>
-                      <option value="income_proof">Income Proof</option>
-                      <option value="bank_statement">Bank Statement</option>
-                    </select>
-                    
-                    <button 
-                      type="button"
-                      className="btn-secondary"
-                      onClick={handleExtractDocuments}
-                      disabled={extractionLoading || !selectedDocType}
-                    >
-                      {extractionLoading ? 'Extracting...' : 'Extract Documents'}
-                    </button>
-                  </div>
-
-                  {extractedDocs.length > 0 && (
-                    <div className="extracted-documents">
-                      <h5 className="extracted-title">
-                        Extracted {selectedDocType.replace('_', ' ')} Documents ({extractedDocs.length})
-                      </h5>
-                      <div className="extracted-list">
-                        {extractedDocs.map((doc, index) => (
-                          <div key={index} className="extracted-item">
-                            <div className="extracted-info">
-                              <div className="extracted-name">📄 {doc.file_name}</div>
-                              <div className="extracted-meta">
-                                Size: {(doc.file_size / 1024).toFixed(2)} KB • 
-                                Uploaded: {new Date(doc.uploaded_at).toLocaleString()}
-                              </div>
-                            </div>
-                            <button 
-                              type="button"
-                              className="btn-download"
-                              onClick={() => handleDownloadDocument(doc.document_id, doc.file_name)}
-                            >
-                              ⬇ Download
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="extraction-note">
-                        💡 Download URLs are valid for 24 hours
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
             </section>

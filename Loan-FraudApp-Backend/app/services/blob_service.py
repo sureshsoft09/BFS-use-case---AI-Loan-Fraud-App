@@ -4,7 +4,7 @@ Handles document uploads and retrieval
 """
 import os
 import uuid
-from typing import Optional, BinaryIO
+from typing import Optional, BinaryIO, List, Dict, Any
 from datetime import datetime, timedelta
 from azure.storage.blob import BlobServiceClient, BlobSasPermissions, generate_blob_sas, ContentSettings
 from dotenv import load_dotenv
@@ -256,6 +256,54 @@ class BlobStorageService:
         
         except Exception as e:
             print(f"Error deleting document: {str(e)}")
+            raise
+    
+    def get_all_document_contents(self, loan_app_id: str) -> List[Dict[str, Any]]:
+        """
+        Retrieve all document contents for a loan application
+        
+        Args:
+            loan_app_id: Loan application ID
+            
+        Returns:
+            List of dictionaries containing document metadata and content
+        """
+        try:
+            blobs = self.container_client.list_blobs(name_starts_with=f"{loan_app_id}/")
+            
+            documents_with_content = []
+            for blob in blobs:
+                blob_client = self.blob_service_client.get_blob_client(
+                    container=self.container_name,
+                    blob=blob.name
+                )
+                
+                # Get blob properties and metadata
+                properties = blob_client.get_blob_properties()
+                
+                # Download blob content
+                download_stream = blob_client.download_blob()
+                content = download_stream.readall()
+                
+                # Convert binary content to base64 for JSON serialization
+                import base64
+                content_base64 = base64.b64encode(content).decode('utf-8')
+                
+                documents_with_content.append({
+                    "document_id": properties.metadata.get("document_id", ""),
+                    "file_name": properties.metadata.get("original_filename", blob.name.split("/")[-1]),
+                    "file_size": blob.size,
+                    "content_type": properties.metadata.get("content_type", properties.content_settings.content_type),
+                    "uploaded_at": properties.metadata.get("uploaded_at", properties.creation_time.isoformat()),
+                    "blob_name": blob.name,
+                    "content_base64": content_base64  # Base64 encoded content for JSON serialization
+                })
+            
+            print(f"Retrieved {len(documents_with_content)} documents with content for: {loan_app_id}")
+            return documents_with_content
+        
+        except Exception as e:
+            print(f"Error retrieving all document contents: {str(e)}")
             raise
     
     def delete_all_documents(self, loan_app_id: str) -> int:
