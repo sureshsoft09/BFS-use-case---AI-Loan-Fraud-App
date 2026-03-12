@@ -101,31 +101,44 @@ function RiskGauge({ score }) {
 }
 
 function AgentCard({ agentKey, data }) {
+  const [expanded, setExpanded] = useState(false);
   const label = AGENT_LABELS[agentKey] || agentKey;
   const score = data?.risk_score ?? data?.score;
+  const confidence = data?.confidence;
   const recommendation = data?.recommendation || data?.status || '—';
-  const findings = data?.key_findings || data?.findings || [];
-  const issues = data?.critical_issues || [];
-  const summary = data?.summary || data?.analysis_summary || data?.comments || '';
+  const findings = data?.findings || data?.key_findings || [];
+  const analysis = data?.analysis || data?.analysis_summary || data?.comments || data?.summary || '';
+  const TRUNCATE_LEN = 220;
+  const isLong = analysis.length > TRUNCATE_LEN;
+  const displayAnalysis = isLong && !expanded ? analysis.slice(0, TRUNCATE_LEN) + '…' : analysis;
 
   return (
     <div className={`agent-card ${score != null ? riskColor(score) : ''}`}>
       <div className="agent-card-header">
         <span className="agent-card-title">{label}</span>
-        {score != null && <RiskPill score={score} />}
+        <div className="agent-card-header-right">
+          {confidence != null && confidence > 0 && (
+            <span className="agent-confidence-badge">{confidence}% conf.</span>
+          )}
+          {score != null && <RiskPill score={score} />}
+        </div>
       </div>
       <div className="agent-card-rec">{recommendation}</div>
-      {summary && <p className="agent-card-summary">{summary}</p>}
+
       {findings.length > 0 && (
         <ul className="agent-card-findings">
-          {findings.slice(0, 5).map((f, i) => <li key={i}>{f}</li>)}
+          {findings.slice(0, 6).map((f, i) => <li key={i}>{f}</li>)}
         </ul>
       )}
-      {issues.length > 0 && (
-        <div className="agent-card-issues">
-          {issues.slice(0, 3).map((issue, i) => (
-            <span key={i} className="issue-tag">{issue}</span>
-          ))}
+
+      {analysis && (
+        <div className="agent-card-analysis">
+          <p>{displayAnalysis}</p>
+          {isLong && (
+            <button className="agent-analysis-toggle" onClick={() => setExpanded(e => !e)}>
+              {expanded ? 'Show less ▲' : 'Show full analysis ▼'}
+            </button>
+          )}
         </div>
       )}
     </div>

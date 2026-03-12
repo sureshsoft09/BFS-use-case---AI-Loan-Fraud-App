@@ -542,6 +542,22 @@ class AgentOrchestrator:
         if rec_match:
             result["recommendation"] = rec_match.group(1).upper()
 
+        # Extract bullet-point findings list (ANOMALIES / RED_FLAGS / CONNECTIONS / ISSUES)
+        # Capture lines between the findings header and the ANALYSIS: block
+        findings_match = re.search(
+            r'(?:ANOMALIES|RED_FLAGS|CONNECTIONS|ISSUES)\s*:\s*(.*?)(?=ANALYSIS\s*:|$)',
+            text, re.IGNORECASE | re.DOTALL
+        )
+        if findings_match:
+            findings_block = findings_match.group(1)
+            result["findings"] = [
+                line.lstrip('-\u2022* ').strip()
+                for line in findings_block.splitlines()
+                if line.strip().lstrip('-\u2022* ').strip()
+            ]
+        else:
+            result["findings"] = []
+
         # Capture everything after ANALYSIS: as the narrative
         analysis_match = re.search(r'ANALYSIS\s*:\s*(.*)', text, re.IGNORECASE | re.DOTALL)
         if analysis_match:

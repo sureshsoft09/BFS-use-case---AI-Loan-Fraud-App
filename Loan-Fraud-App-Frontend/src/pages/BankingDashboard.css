@@ -662,9 +662,13 @@
 }
 
 .agent-cards-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .agent-cards-grid { grid-template-columns: 1fr; }
 }
 
 .agent-card {
@@ -683,6 +687,23 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 4px;
+}
+
+.agent-card-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.agent-confidence-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: #4a5568;
+  background: #edf2f7;
+  border: 1px solid #cbd5e0;
+  border-radius: 10px;
+  padding: 1px 7px;
+  white-space: nowrap;
 }
 
 .agent-card-title {
@@ -720,6 +741,32 @@
   gap: 4px;
   margin-top: 6px;
 }
+
+.agent-card-analysis {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+}
+
+.agent-card-analysis p {
+  font-size: 12px;
+  color: #4a5568;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.agent-analysis-toggle {
+  margin-top: 5px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 11px;
+  color: #3182ce;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.agent-analysis-toggle:hover { text-decoration: underline; }
 
 .issue-tag {
   background: #fff5f5;

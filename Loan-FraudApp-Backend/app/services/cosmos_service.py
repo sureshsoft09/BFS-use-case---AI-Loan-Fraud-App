@@ -310,16 +310,14 @@ class CosmosDBService:
                 "summary": agent_analyses.get("summary", "")
             }
             
-            # Extract individual agent results with scores and comments
+            # Extract individual agent results with scores, analysis narrative and findings
             for agent_name, agent_data in agent_analyses.get("agent_analyses", {}).items():
                 fraud_analysis["agent_results"][agent_name] = {
                     "risk_score": agent_data.get("risk_score", 0),
+                    "confidence": agent_data.get("confidence", 0),
                     "recommendation": agent_data.get("recommendation", ""),
-                    "comments": agent_data.get("comments", ""),
+                    "analysis": agent_data.get("analysis", ""),
                     "findings": agent_data.get("findings", []),
-                    "flag_count": agent_data.get("flag_count", 0),
-                    "analyzed_data": agent_data.get("analyzed_data", {}),
-                    "raw_response": agent_data  # Store full response
                 }
             
             # Update the document
