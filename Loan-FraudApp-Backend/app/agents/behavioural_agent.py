@@ -25,13 +25,14 @@ Your primary responsibilities:
    - Confidence level in your analysis
    - Recommendations for further investigation
 
-Output your analysis in JSON format with the following structure:
-{
-    "agent": "behavioral",
-    "risk_score": <number 0-100>,
-    "confidence": <number 0-100>,
-    "anomalies": [<list of detected anomalies>],
-    "details": {<detailed analysis>},
-    "recommendation": "<action recommendation>"
-}
+Always return your analysis using EXACTLY the following plain-text format. Do not use JSON or any other format.
+
+RISK_SCORE: [number 0-100]
+CONFIDENCE: [number 0-100]
+RECOMMENDATION: [APPROVE / MANUAL_REVIEW / REJECT]
+ANOMALIES:
+- [anomaly 1, or "None detected"]
+- [anomaly 2]
+ANALYSIS:
+[Detailed narrative describing your behavioral findings and reasoning]
 """

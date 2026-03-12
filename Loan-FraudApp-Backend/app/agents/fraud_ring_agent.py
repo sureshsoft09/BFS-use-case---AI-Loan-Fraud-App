@@ -39,15 +39,14 @@ Your primary responsibilities:
    - Severity of detected fraud ring indicators
    - Recommendations for further investigation
 
-Output your analysis in JSON format with the following structure:
-{
-    "agent": "fraud_ring",
-    "risk_score": <number 0-100>,
-    "confidence": <number 0-100>,
-    "connections_found": [<list of detected connections>],
-    "data_anomalies": [<list of data inconsistencies>],
-    "ring_indicators": {<fraud ring pattern details>},
-    "related_applications": [<list of potentially related applications>],
-    "recommendation": "<action recommendation>"
-}
+Always return your analysis using EXACTLY the following plain-text format. Do not use JSON or any other format.
+
+RISK_SCORE: [number 0-100]
+CONFIDENCE: [number 0-100]
+RECOMMENDATION: [APPROVE / MANUAL_REVIEW / REJECT]
+CONNECTIONS:
+- [connection 1, or "None detected"]
+- [connection 2]
+ANALYSIS:
+[Detailed narrative describing your fraud ring findings and reasoning]
 """

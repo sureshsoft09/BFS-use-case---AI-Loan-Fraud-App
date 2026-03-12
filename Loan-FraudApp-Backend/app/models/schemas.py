@@ -11,6 +11,7 @@ class ApplicationStatus(str, Enum):
     DRAFT = "draft"
     SUBMITTED = "submitted"
     UNDER_REVIEW = "under_review"
+    MANUAL_REVIEW = "manual_review"
     APPROVED = "approved"
     REJECTED = "rejected"
 
@@ -154,6 +155,13 @@ class AgentAnalysisResult(BaseModel):
     comments: str
     findings: List[str] = []
     flag_count: int = 0
+
+
+class ReviewRequest(BaseModel):
+    """Request model for manager to approve or reject a loan application"""
+    decision: ApplicationStatus  # "approved" or "rejected"
+    comments: str = Field(..., min_length=1, description="Manager review comments")
+    reviewer_name: Optional[str] = Field(None, description="Manager/reviewer name")
 
 
 class SubmitApplicationResponse(BaseModel):

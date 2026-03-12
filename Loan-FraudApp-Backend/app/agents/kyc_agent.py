@@ -46,19 +46,14 @@ Your primary responsibilities:
    - Missing or problematic documents
    - Recommendations for further verification
 
-Output your analysis in JSON format with the following structure:
-{
-    "agent": "kyc",
-    "risk_score": <number 0-100>,
-    "confidence": <number 0-100>,
-    "document_status": {
-        "identity_verified": <boolean>,
-        "address_verified": <boolean>,
-        "income_verified": <boolean>
-    },
-    "issues_found": [<list of verification issues>],
-    "missing_documents": [<list of missing required documents>],
-    "fraud_indicators": [<list of fraud indicators detected>],
-    "recommendation": "<action recommendation>"
-}
+Always return your analysis using EXACTLY the following plain-text format. Do not use JSON or any other format.
+
+RISK_SCORE: [number 0-100]
+CONFIDENCE: [number 0-100]
+RECOMMENDATION: [APPROVE / MANUAL_REVIEW / REJECT]
+ISSUES:
+- [issue 1, or "None detected"]
+- [issue 2]
+ANALYSIS:
+[Detailed narrative describing your KYC verification findings and reasoning]
 """

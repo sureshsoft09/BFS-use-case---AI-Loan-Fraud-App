@@ -31,14 +31,14 @@ Your primary responsibilities:
    - Confidence level in your analysis
    - Recommendations for further investigation
 
-Output your analysis in JSON format with the following structure:
-{
-    "agent": "device_fingerprint",
-    "risk_score": <number 0-100>,
-    "confidence": <number 0-100>,
-    "red_flags": [<list of detected red flags>],
-    "device_info": {<device details>},
-    "location_analysis": {<location matching details>},
-    "recommendation": "<action recommendation>"
-}
+Always return your analysis using EXACTLY the following plain-text format. Do not use JSON or any other format.
+
+RISK_SCORE: [number 0-100]
+CONFIDENCE: [number 0-100]
+RECOMMENDATION: [APPROVE / MANUAL_REVIEW / REJECT]
+RED_FLAGS:
+- [flag 1, or "None detected"]
+- [flag 2]
+ANALYSIS:
+[Detailed narrative describing your device fingerprint findings and reasoning]
 """

@@ -26,6 +26,7 @@ from app.models.schemas import (
     LoanApplicationDetail,
     ApplicationStatus,
     StatusUpdateRequest,
+    ReviewRequest,
     BiometricsData,
     DeviceFingerprintData,
     AgentAnalysisResult,
@@ -278,6 +279,56 @@ async def run_fraud_analysis_background(
         print(f"  Using global orchestrator with pre-initialized agents...")
         
         start_time = time.time()
+
+        print(f" Complete dataset - {complete_dataset}")
+
+        import json as _json
+
+        def _safe_json(obj):
+            try:
+                return _json.dumps(obj, indent=2, default=str)
+            except Exception:
+                return str(obj)
+
+        prompt_input = f"""You are a specialized fraud detection agent. A loan application has been submitted and requires your expert analysis.
+
+Apply your specific area of expertise to the data provided below and produce a risk assessment for this application.
+
+=== APPLICATION REFERENCE ===
+Loan Application ID : {loan_app_id}
+Submitted At        : {complete_dataset.get('created_at', 'N/A')}
+
+=== APPLICANT INFORMATION ===
+{_safe_json(complete_dataset.get('applicant_info', {}))}
+
+=== LOAN DETAILS ===
+{_safe_json(complete_dataset.get('loan_details', {}))}
+
+=== BEHAVIOURAL / BIOMETRIC DATA ===
+(Keystroke dynamics, mouse movements, form interaction timings)
+{_safe_json(complete_dataset.get('behavioral_data', {}))}
+
+=== DEVICE FINGERPRINT DATA ===
+(IP address, geolocation, browser/OS, VPN/proxy indicators, session history)
+{_safe_json(complete_dataset.get('device_fingerprint_data', {}))}
+
+=== FRAUD RING INDICATORS ===
+(Cross-applicant connections, shared contacts, address clusters, identity consistency)
+{_safe_json(complete_dataset.get('fraud_ring_data', {}))}
+
+=== KYC DOCUMENTS ===
+(Identity documents, proof of address, income verification, document contents)
+{_safe_json(complete_dataset.get('kyc_data', {}))}
+
+=== INSTRUCTIONS ===
+1. Focus exclusively on your designated area of expertise (defined in your system instructions).
+2. Analyse only the data sections that are relevant to your specialization.
+3. Base your risk score solely on evidence present in the data — do NOT assume risk without evidence.
+4. If a data section is empty or unavailable, note it and reduce your confidence score accordingly.
+5. You MUST respond using EXACTLY the plain-text format specified in your system instructions.
+   Do NOT use JSON, markdown code blocks, or any other format.
+   Required fields: RISK_SCORE, CONFIDENCE, RECOMMENDATION, your findings list, and ANALYSIS.
+"""
         
         try:
             # Use the global orchestrator instance (already initialized at startup)
@@ -285,7 +336,7 @@ async def run_fraud_analysis_background(
                 raise RuntimeError("Agent orchestrator not initialized")
             
             # Pass the complete dataset to the orchestrator
-            analysis_results = await global_orchestrator.run_workflow(json.dumps(complete_dataset))
+            analysis_results = await global_orchestrator.run_workflow(prompt_input)
         except Exception as agent_error:
             print(f"  ✗ Agent analysis failed: {str(agent_error)}")
             # Update status to indicate analysis failure
@@ -307,6 +358,15 @@ async def run_fraud_analysis_background(
         overall_risk_score = analysis_results.get("overall_risk_score", 50.0)
         overall_recommendation = analysis_results.get("overall_recommendation", "MANUAL_REVIEW")
         application_status = analysis_results.get("application_status", "under_review")
+        
+        # Map uppercase agent-output statuses to lowercase enum-compatible values
+        _status_map = {
+            "APPROVED": "approved",
+            "REJECTED": "rejected",
+            "MANUAL_REVIEW": "manual_review",
+            "UNDER_REVIEW": "under_review",
+        }
+        application_status = _status_map.get(application_status, application_status.lower())
         
         print(f"  Individual Agent Results:")
         agent_analyses_dict = analysis_results.get("agent_analyses", {})
@@ -413,12 +473,18 @@ async def get_loan_application(
         if not application:
             raise HTTPException(status_code=404, detail=f"Loan application {loan_app_id} not found")
         
-        # Parse the response
+        # Normalize status: old docs may have uppercase values from the agent orchestrator
+        _STATUS_MAP = {"APPROVED": "approved", "REJECTED": "rejected",
+                       "MANUAL_REVIEW": "manual_review", "UNDER_REVIEW": "under_review",
+                       "SUBMITTED": "submitted", "DRAFT": "draft"}
+        raw_status = application.get("status", "draft")
+        application["status"] = _STATUS_MAP.get(raw_status, raw_status.lower())
+        
         return LoanApplicationDetail(
             loan_app_id=application["loan_app_id"],
             status=ApplicationStatus(application["status"]),
-            applicant_info=application["applicant_info"],
-            loan_details=application["loan_details"],
+            applicant_info=application.get("applicant_info", {}),
+            loan_details=application.get("loan_details", {}),
             biometrics_history=application.get("biometrics_history", []),
             device_fingerprint_history=application.get("device_fingerprint_history", []),
             documents=application.get("documents", []),
@@ -449,20 +515,29 @@ async def list_loan_applications(
     try:
         applications = db_service.list_loan_applications(status=status, limit=limit)
         
+        _STATUS_MAP = {"APPROVED": "approved", "REJECTED": "rejected",
+                       "MANUAL_REVIEW": "manual_review", "UNDER_REVIEW": "under_review",
+                       "SUBMITTED": "submitted", "DRAFT": "draft"}
+        
         result = []
         for app in applications:
-            result.append(LoanApplicationDetail(
-                loan_app_id=app["loan_app_id"],
-                status=ApplicationStatus(app["status"]),
-                applicant_info=app["applicant_info"],
-                loan_details=app["loan_details"],
-                biometrics_history=app.get("biometrics_history", []),
-                device_fingerprint_history=app.get("device_fingerprint_history", []),
-                documents=app.get("documents", []),
-                fraud_analysis=app.get("fraud_analysis"),
-                created_at=datetime.fromisoformat(app["created_at"]),
-                updated_at=datetime.fromisoformat(app["updated_at"])
-            ))
+            try:
+                raw_status = app.get("status", "draft")
+                app["status"] = _STATUS_MAP.get(raw_status, raw_status.lower())
+                result.append(LoanApplicationDetail(
+                    loan_app_id=app["loan_app_id"],
+                    status=ApplicationStatus(app["status"]),
+                    applicant_info=app.get("applicant_info", {}),
+                    loan_details=app.get("loan_details", {}),
+                    biometrics_history=app.get("biometrics_history", []),
+                    device_fingerprint_history=app.get("device_fingerprint_history", []),
+                    documents=app.get("documents", []),
+                    fraud_analysis=app.get("fraud_analysis"),
+                    created_at=datetime.fromisoformat(app["created_at"]),
+                    updated_at=datetime.fromisoformat(app["updated_at"])
+                ))
+            except Exception as item_err:
+                print(f"[WARN] Skipping malformed application {app.get('loan_app_id', '?')}: {item_err}")
         
         return result
     
@@ -498,6 +573,47 @@ async def update_loan_status(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating status: {str(e)}")
+
+
+@app.post("/api/loans/{loan_app_id}/review")
+async def review_loan_application(
+    loan_app_id: str,
+    request: ReviewRequest,
+    db_service = Depends(get_db_service)
+):
+    """
+    Manager approve or reject a loan application with mandatory comments.
+    - decision: "approved" or "rejected"
+    - comments: required review notes
+    - reviewer_name: optional reviewer identifier
+    """
+    try:
+        application = db_service.get_loan_application(loan_app_id)
+        if not application:
+            raise HTTPException(status_code=404, detail=f"Loan application {loan_app_id} not found")
+
+        updates = {
+            "status": request.decision.value,
+            "manager_review": {
+                "decision": request.decision.value,
+                "comments": request.comments,
+                "reviewer_name": request.reviewer_name or "Manager",
+                "reviewed_at": datetime.utcnow().isoformat()
+            }
+        }
+        updated_app = db_service.update_loan_application(loan_app_id, updates)
+
+        return {
+            "loan_app_id": loan_app_id,
+            "status": request.decision.value,
+            "manager_review": updates["manager_review"],
+            "message": f"Application {request.decision.value} successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reviewing loan application: {str(e)}")
 
 
 @app.post("/api/loans/{loan_app_id}/submit")
@@ -1015,9 +1131,42 @@ async def run_fraud_analysis(
         try:
             if not global_orchestrator:
                 raise RuntimeError("Agent orchestrator not initialized")
-            
-            # Convert to JSON string for the orchestrator
-            analysis_results = await global_orchestrator.run_workflow(json.dumps(analysis_input))
+
+            analysis_prompt = f"""You are a specialized fraud detection agent. A loan application has been submitted and requires your expert analysis.
+
+Apply your specific area of expertise to the data provided below and produce a risk assessment for this application.
+
+=== APPLICATION REFERENCE ===
+Loan Application ID : {loan_app_id}
+
+=== APPLICANT INFORMATION ===
+{json.dumps(analysis_input.get('applicant_info', {}), indent=2, default=str)}
+
+=== LOAN DETAILS ===
+{json.dumps(analysis_input.get('loan_details', {}), indent=2, default=str)}
+
+=== BEHAVIOURAL / BIOMETRIC DATA ===
+(Keystroke dynamics, mouse movements, form interaction timings)
+{json.dumps(analysis_input.get('biometrics_history', []), indent=2, default=str)}
+
+=== DEVICE FINGERPRINT DATA ===
+(IP address, geolocation, browser/OS, VPN/proxy indicators, session history)
+{json.dumps(analysis_input.get('device_fingerprint_history', []), indent=2, default=str)}
+
+=== KYC DOCUMENTS ===
+(Identity documents, proof of address, income verification)
+{json.dumps(analysis_input.get('documents', []), indent=2, default=str)}
+
+=== INSTRUCTIONS ===
+1. Focus exclusively on your designated area of expertise (defined in your system instructions).
+2. Analyse only the data sections that are relevant to your specialization.
+3. Base your risk score solely on evidence present in the data — do NOT assume risk without evidence.
+4. If a data section is empty or unavailable, note it and reduce your confidence score accordingly.
+5. You MUST respond using EXACTLY the plain-text format specified in your system instructions.
+   Do NOT use JSON, markdown code blocks, or any other format.
+   Required fields: RISK_SCORE, CONFIDENCE, RECOMMENDATION, your findings list, and ANALYSIS.
+"""
+            analysis_results = await global_orchestrator.run_workflow(analysis_prompt)
         except Exception as agent_error:
             raise HTTPException(
                 status_code=500, 

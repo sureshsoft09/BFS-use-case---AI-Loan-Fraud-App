@@ -14,11 +14,11 @@ export const AZURE_CONFIG = {
   ENDPOINTS: {
     // Loan Application endpoints
     CREATE_LOAN: '/api/loans/create',
-    UPDATE_LOAN_STATUS: '/api/loans/{id}/status',
+    LIST_LOANS: '/api/loans',
     GET_LOAN: '/api/loans/{id}',
+    UPDATE_LOAN_STATUS: '/api/loans/{id}/status',
     SUBMIT_LOAN: '/api/loans/{id}/submit',
-    GET_APPLICATIONS: '/api/loan/applications',
-    GET_APPLICATION_DETAILS: '/api/loan/application',
+    REVIEW_LOAN: '/api/loans/{id}/review',
     
     // Document upload endpoints
     UPLOAD_DOCUMENT: '/api/loans/{id}/documents/upload',

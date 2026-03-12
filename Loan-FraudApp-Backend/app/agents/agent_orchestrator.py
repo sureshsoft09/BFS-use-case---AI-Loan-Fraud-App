@@ -13,6 +13,7 @@ The system analyzes loan applications across four dimensions:
 """
 
 import os
+import re
 import asyncio
 import json
 from typing import List, Dict, Optional, Any
@@ -133,7 +134,10 @@ class AgentOrchestrator:
             Agent object from Azure AI Foundry
         """
         print(f"Checking if agent '{name}' exists in Foundry...")
-        
+
+        if not instructions or not instructions.strip():
+            raise ValueError(f"Instructions for agent '{name}' are empty — check the agent module.")
+
         # Prepare config parameters
         config = config or {}
         temperature = config.get('temperature', 0.7)
@@ -141,10 +145,13 @@ class AgentOrchestrator:
         max_tokens = config.get('max_tokens', 4000)
         description = config.get('description', '')
         
-        # List all agents (run in thread pool to avoid blocking)
-        existing_agents_iter = await asyncio.to_thread(self.agents_client.list_agents)
-        existing_agents = list(existing_agents_iter)
-        
+        # Fetch ALL agents inside the thread so the iterator is fully consumed
+        # in the same synchronous context — avoids getting only the first page.
+        # limit=100 is the API maximum per page, minimising round-trips.
+        existing_agents = await asyncio.to_thread(
+            lambda: list(self.agents_client.list_agents(limit=100))
+        )
+
         # Check if agent with this name already exists
         for agent in existing_agents:
             if agent.name == name:
@@ -227,17 +234,38 @@ class AgentOrchestrator:
             Combines individual agent analyses into a consolidated fraud report.
             """
             agent_results = {}
+
+            print(f"\n[AGGREGATOR] Received {len(results)} result(s)")
+            for i, r in enumerate(results):
+                print(f"  [AGGREGATOR] Item {i}: type={type(r).__name__}, attrs={[a for a in dir(r) if not a.startswith('_')]}")
+                # Inspect agent_response
+                ar_raw = getattr(r, 'agent_response', None)
+                print(f"    agent_response type: {type(ar_raw).__name__ if ar_raw is not None else 'None'}")
+                if ar_raw is not None:
+                    msgs = getattr(ar_raw, 'messages', None)
+                    print(f"    agent_response.messages: {msgs}")
+                    if msgs:
+                        for j, m in enumerate(msgs):
+                            print(f"      msg[{j}]: author={getattr(m,'author_name',None)}, text={repr(getattr(m,'text',None))[:200]}")
+                # If item itself looks like AgentResponse
+                own_msgs = getattr(r, 'messages', None)
+                if own_msgs and ar_raw is None:
+                    print(f"    direct .messages: {own_msgs}")
+                    for j, m in enumerate(own_msgs):
+                        print(f"      msg[{j}]: author={getattr(m,'author_name',None)}, text={repr(getattr(m,'text',None))[:200]}")
             
             for r in results:
                 # Extract agent name and response text
-                if hasattr(r, 'agent_response') and r.agent_response.messages:
-                    last_msg = r.agent_response.messages[-1]
-                    agent_name = last_msg.author_name or "unknown"
-                    text = last_msg.text or ""
-                    
-                    if agent_name != "user" and text and agent_name != "unknown":
+                ar = getattr(r, 'agent_response', None) or (r if isinstance(r, AgentResponse) else None)
+                if ar and getattr(ar, 'messages', None):
+                    last_msg = ar.messages[-1]
+                    agent_name = getattr(last_msg, 'author_name', None) or "unknown"
+                    text = getattr(last_msg, 'text', None) or ""
+                    print(f"  [AGGREGATOR] Extracted: agent={agent_name!r}, text_len={len(text)}")
+                    if agent_name not in ("user", "unknown") and text:
                         agent_results[agent_name] = text
             
+            print(f"  [AGGREGATOR] agent_results keys: {list(agent_results.keys())}")
             if not agent_results:
                 return '{"error": "No agent responses received", "risk_score": 50}'
             
@@ -251,68 +279,21 @@ class AgentOrchestrator:
 
     async def initialize_workflow(self):
         """
-        Initialize the Concurrent Orchestration workflow with all agents.
-        All agents will run in parallel to analyze the loan application simultaneously.
+        Validate all Foundry agents are ready.
+        Thread creation happens per-run inside run_workflow() to prevent
+        persistent thread contamination between analyses.
         """
-        print("\n" + "="*60)
-        print("INITIALIZING CONCURRENT FRAUD DETECTION WORKFLOW")
-        print("="*60 + "\n")
-        
-        # Create AzureAIAgentClient as context manager
-        self.foundry_client = AzureAIAgentClient(
-            credential=self.credential,
-            project_endpoint=self.project_endpoint,
-            model_deployment_name=self.model_deployment_name
-        )
-        
-        await self.foundry_client.__aenter__()
-        
-        # Wrap all agents for the workflow
-        print("Wrapping agents for concurrent orchestration...")
-        
-        behavioural_agent_wrapped = self.foundry_client.as_agent(
-            agent_id=self.foundry_agents['behavioural'].id,
-            name=self.foundry_agents['behavioural'].name
-        )
-        
-        device_fingerprint_agent_wrapped = self.foundry_client.as_agent(
-            agent_id=self.foundry_agents['device_fingerprint'].id,
-            name=self.foundry_agents['device_fingerprint'].name
-        )
-        
-        fraud_ring_agent_wrapped = self.foundry_client.as_agent(
-            agent_id=self.foundry_agents['fraud_ring'].id,
-            name=self.foundry_agents['fraud_ring'].name
-        )
-        
-        kyc_agent_wrapped = self.foundry_client.as_agent(
-            agent_id=self.foundry_agents['kyc'].id,
-            name=self.foundry_agents['kyc'].name
-        )
-        
-        # Build Concurrent Orchestration - all agents run in parallel
-        print(f"Building Concurrent Orchestration with {len(self.foundry_agents)} agents...")
-        
-        # Create custom aggregator for combining agent results
-        aggregator = self._make_aggregator()
-        
-        self.workflow = ConcurrentBuilder(
-            participants=[
-                behavioural_agent_wrapped,
-                device_fingerprint_agent_wrapped,
-                fraud_ring_agent_wrapped,
-                kyc_agent_wrapped
-            ],
-            intermediate_outputs=True
-        ).with_aggregator(aggregator).build()
-        
-        print("✓ Concurrent orchestration workflow initialized successfully")
-        print("  All agents will run in parallel for comprehensive fraud analysis\n")
-    
+        if not self.foundry_agents:
+            raise RuntimeError("Agents not set up. Call setup_agents() first.")
+        print("\n✓ Workflow ready — a fresh client and threads will be created per analysis run\n")
+
     async def run_workflow(self, loan_application_data: str) -> Dict:
         """
         Run the concurrent fraud detection workflow with the given loan application data.
         All agents analyze the application simultaneously and results are aggregated.
+
+        A fresh AzureAIAgentClient is created for every invocation so that each run
+        starts on a clean Azure AI thread with no prior conversation history.
 
         Args:
             loan_application_data: JSON string or structured data containing:
@@ -325,45 +306,104 @@ class AgentOrchestrator:
         Returns:
             Dict containing aggregated fraud analysis with overall risk assessment
         """
-        if not self.workflow:
-            raise RuntimeError(
-                "Workflow not initialized. Call initialize_workflow() first."
-            )
+        if not self.foundry_agents:
+            raise RuntimeError("Agents not set up. Call setup_agents() first.")
 
         print("\n" + "="*60)
         print("RUNNING CONCURRENT FRAUD DETECTION ANALYSIS")
         print("="*60)
         print(f"\nExecuting all agents in parallel...")
 
+        # Debug: show first 300 chars of the data being sent to agents
+        data_preview = loan_application_data[:300] if isinstance(loan_application_data, str) else repr(loan_application_data)[:300]
+        print(f"\n[WORKFLOW] Sending to agents (first 300 chars): {data_preview}\n")
+
         agent_results = {}
-        
-        # Run concurrent orchestration - all agents execute in parallel
-        result = await self.workflow.run(loan_application_data)
-        
-        # Process the result
-        if isinstance(result, str):
-            # Aggregated result from our custom aggregator
-            try:
-                agent_results = json.loads(result)
+
+        # Create a FRESH AzureAIAgentClient for this run.
+        # This guarantees new Azure AI threads, preventing old conversation history
+        # from contaminating the current analysis.
+        fresh_client = AzureAIAgentClient(
+            credential=self.credential,
+            project_endpoint=self.project_endpoint,
+            model_deployment_name=self.model_deployment_name
+        )
+
+        async with fresh_client:
+            # Wrap all agents using the fresh client so each gets a new thread
+            print("Wrapping agents for concurrent orchestration...")
+            behavioural_agent_wrapped = fresh_client.as_agent(
+                agent_id=self.foundry_agents['behavioural'].id,
+                name=self.foundry_agents['behavioural'].name
+            )
+            device_fingerprint_agent_wrapped = fresh_client.as_agent(
+                agent_id=self.foundry_agents['device_fingerprint'].id,
+                name=self.foundry_agents['device_fingerprint'].name
+            )
+            fraud_ring_agent_wrapped = fresh_client.as_agent(
+                agent_id=self.foundry_agents['fraud_ring'].id,
+                name=self.foundry_agents['fraud_ring'].name
+            )
+            kyc_agent_wrapped = fresh_client.as_agent(
+                agent_id=self.foundry_agents['kyc'].id,
+                name=self.foundry_agents['kyc'].name
+            )
+
+            aggregator = self._make_aggregator()
+
+            workflow = ConcurrentBuilder(
+                participants=[
+                    behavioural_agent_wrapped,
+                    device_fingerprint_agent_wrapped,
+                    fraud_ring_agent_wrapped,
+                    kyc_agent_wrapped
+                ],
+                intermediate_outputs=True
+            ).with_aggregator(aggregator).build()
+
+            # Run concurrent orchestration - all agents execute in parallel
+            result = await workflow.run(loan_application_data)
+
+            # WorkflowRunResult is a list[WorkflowEvent] subclass.
+            # Use get_outputs() to extract all ctx.yield_output() payloads:
+            #   - Individual AgentResponse objects (one per agent, from superstep 1)
+            #   - Our aggregator's JSON string (from superstep 2)
+            outputs = result.get_outputs() if hasattr(result, 'get_outputs') else []
+            print(f"\n[WORKFLOW] get_outputs() returned {len(outputs)} output(s):")
+            for i, o in enumerate(outputs):
+                print(f"  [{i}] type={type(o).__name__}, preview={repr(str(o))[:150]}")
+
+            # The aggregator returns a JSON string mapping agent_name -> response_text.
+            # Find it among the outputs (individual agent outputs are AgentResponse objects).
+            aggregated_json = None
+            for output in outputs:
+                if isinstance(output, str):
+                    try:
+                        parsed = json.loads(output)
+                        if isinstance(parsed, dict) and "error" not in parsed:
+                            aggregated_json = parsed
+                            break
+                    except json.JSONDecodeError:
+                        pass
+
+            if aggregated_json:
+                agent_results = aggregated_json
                 print(f"\n✓ All agents completed analysis")
                 print(f"  Received aggregated results from {len(agent_results)} agents\n")
-            except json.JSONDecodeError:
-                print(f"  Warning: Could not parse aggregated results, using raw data\n")
-                agent_results = {"raw": result}
-        elif isinstance(result, list):
-            # List of messages (fallback if no aggregator)
-            for item in result:
-                if isinstance(item, Message) and item.text:
-                    agent_name = item.author_name or "unknown"
-                    if agent_name != "user":
-                        if agent_name not in agent_results:
-                            agent_results[agent_name] = ""
-                        agent_results[agent_name] += item.text
-            print(f"\n✓ All agents completed analysis")
-            print(f"  Processed {len(agent_results)} agent responses\n")
-        else:
-            print(f"\n✓ Analysis completed with unexpected result type: {type(result)}\n")
-            agent_results = {"raw": str(result)}
+            else:
+                # Fallback: extract directly from individual AgentResponse outputs
+                print("  [WORKFLOW] No aggregator JSON found — falling back to individual outputs")
+                for output in outputs:
+                    if isinstance(output, AgentResponse):
+                        msgs = getattr(output, 'messages', None) or []
+                        if msgs:
+                            last_msg = msgs[-1]
+                            agent_name = getattr(last_msg, 'author_name', None) or "unknown"
+                            text = getattr(last_msg, 'text', None) or ""
+                            if agent_name not in ("user", "unknown") and text:
+                                agent_results[agent_name] = text
+                print(f"\n✓ All agents completed analysis")
+                print(f"  Processed {len(agent_results)} agent responses (fallback)\n")
 
         # Aggregate results and calculate overall risk
         return self._aggregate_results(agent_results)
@@ -395,31 +435,26 @@ class AgentOrchestrator:
         critical_issues = []
         warnings = []
         
-        # Parse each agent's JSON response
+        # Parse each agent's plain-text response
         for agent_name, result_text in agent_results.items():
             try:
-                # Try to extract JSON from the response
-                result_json = self._extract_json(result_text)
-                
-                if result_json:
-                    consolidated_report["agent_analyses"][agent_name] = result_json
-                    
-                    # Extract risk score
-                    if 'risk_score' in result_json:
-                        risk_scores.append(result_json['risk_score'])
-                    
-                    # Collect critical issues (high risk)
-                    if result_json.get('risk_score', 0) >= 70:
-                        critical_issues.append(f"{agent_name}: {result_json.get('recommendation', 'High risk detected')}")
-                    elif result_json.get('risk_score', 0) >= 40:
-                        warnings.append(f"{agent_name}: {result_json.get('recommendation', 'Moderate risk detected')}")
-                else:
-                    # Store raw text if JSON parsing fails
-                    consolidated_report["agent_analyses"][agent_name] = {"raw_response": result_text}
-                    
+                parsed = self._extract_from_text(result_text)
+                consolidated_report["agent_analyses"][agent_name] = parsed
+
+                risk_score = parsed.get("risk_score", 0)
+                recommendation = parsed.get("recommendation", "")
+
+                if risk_score > 0:
+                    risk_scores.append(risk_score)
+
+                if risk_score >= 70:
+                    critical_issues.append(f"{agent_name}: {recommendation or 'High risk detected'}")
+                elif risk_score >= 40:
+                    warnings.append(f"{agent_name}: {recommendation or 'Moderate risk detected'}")
+
             except Exception as e:
                 print(f"  Warning: Could not parse {agent_name} response: {e}")
-                consolidated_report["agent_analyses"][agent_name] = {"error": str(e), "raw_response": result_text}
+                consolidated_report["agent_analyses"][agent_name] = {"raw_response": result_text}
         
         # Calculate overall risk score (weighted average or max)
         if risk_scores:
@@ -454,42 +489,68 @@ class AgentOrchestrator:
         
         return consolidated_report
     
-    def _extract_json(self, text: str) -> Optional[Dict]:
+    def _extract_from_text(self, text: str) -> Dict:
         """
-        Extract JSON object from text that may contain markdown or other content.
-        
-        Args:
-            text: Text potentially containing JSON
-            
-        Returns:
-            Parsed JSON dict or None
+        Parse a structured plain-text agent response into a dict.
+
+        Expected format produced by all agent instructions:
+            RISK_SCORE: 35
+            CONFIDENCE: 80
+            RECOMMENDATION: MANUAL_REVIEW
+            <FINDINGS/ANOMALIES/RED_FLAGS/CONNECTIONS/ISSUES>:
+            - item 1
+            ANALYSIS:
+            Narrative text ...
+
+        Falls back gracefully when fields are missing.
+        Also accepts JSON responses for backwards compatibility.
         """
-        # Try direct JSON parse first
-        try:
-            return json.loads(text)
-        except:
-            pass
-        
-        # Try to find JSON in code blocks
-        import re
-        json_pattern = r'```(?:json)?\s*(\{.*?\})\s*```'
-        matches = re.findall(json_pattern, text, re.DOTALL)
-        if matches:
+        # Backwards compat: if it looks like JSON, parse it
+        stripped = text.strip()
+        if stripped.startswith('{'):
             try:
-                return json.loads(matches[0])
-            except:
+                data = json.loads(stripped)
+                # Normalise key names that may differ between JSON and text versions
+                return {
+                    "risk_score": data.get("risk_score", 0),
+                    "confidence": data.get("confidence", 0),
+                    "recommendation": data.get("recommendation", ""),
+                    "analysis": data.get("details") or data.get("analysis") or str(data),
+                    "raw_response": text,
+                }
+            except json.JSONDecodeError:
                 pass
-        
-        # Try to find any JSON object
-        json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
-        matches = re.findall(json_pattern, text, re.DOTALL)
-        for match in matches:
-            try:
-                return json.loads(match)
-            except:
-                continue
-        
-        return None
+
+        result = {
+            "risk_score": 0,
+            "confidence": 0,
+            "recommendation": "",
+            "analysis": "",
+            "raw_response": text,
+        }
+
+        # Extract labelled fields with a simple regex scan
+        score_match = re.search(r'RISK[_\s]SCORE\s*:\s*(\d+)', text, re.IGNORECASE)
+        if score_match:
+            result["risk_score"] = int(score_match.group(1))
+
+        conf_match = re.search(r'CONFIDENCE\s*:\s*(\d+)', text, re.IGNORECASE)
+        if conf_match:
+            result["confidence"] = int(conf_match.group(1))
+
+        rec_match = re.search(r'RECOMMENDATION\s*:\s*(APPROVE|MANUAL_REVIEW|REJECT)', text, re.IGNORECASE)
+        if rec_match:
+            result["recommendation"] = rec_match.group(1).upper()
+
+        # Capture everything after ANALYSIS: as the narrative
+        analysis_match = re.search(r'ANALYSIS\s*:\s*(.*)', text, re.IGNORECASE | re.DOTALL)
+        if analysis_match:
+            result["analysis"] = analysis_match.group(1).strip()
+        else:
+            result["analysis"] = text.strip()
+
+        return result
+
     
     def _generate_summary(self, report: Dict) -> str:
         """Generate a human-readable summary of the fraud analysis."""
@@ -512,10 +573,8 @@ class AgentOrchestrator:
         return "\n".join(summary_parts)
     
     async def cleanup(self):
-        """Clean up resources."""
-        if self.foundry_client:
-            await self.foundry_client.__aexit__(None, None, None)
-            print("✓ Resources cleaned up")
+        """Clean up resources (clients are now per-run, nothing persistent to release)."""
+        print("✓ Resources cleaned up")
 
 
 # Convenience function for simple workflow execution
