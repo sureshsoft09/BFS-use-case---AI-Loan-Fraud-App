@@ -1,0 +1,93 @@
+name: Deploy Loan Fraud App
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# ── Required GitHub Secrets ──────────────────────────────────────────────────
+# ACR_LOGIN_SERVER      – e.g. loanfraudacr.azurecr.io
+# ACR_USERNAME          – ACR admin username (= the ACR name, e.g. loanfraudacr)
+# ACR_PASSWORD          – ACR admin password
+# BACKEND_CD_URL        – Web App CD webhook URL (from: Azure Portal → App Service →
+#                          Deployment Center → Settings → Copy webhook URL)
+#
+# AZURE_AI_PROJECT_ENDPOINT         – Azure AI Foundry project endpoint URL
+# AZURE_AI_MODEL_DEPLOYMENT_NAME    – Model deployment name (e.g. gpt-5-chat)
+# COSMOS_DB_URL                     – Cosmos DB account URL
+# COSMOS_DB_KEY                     – Cosmos DB primary key
+# COSMOS_DB_NAME                    – Database name (e.g. loan-fraud-app)
+# COSMOS_PROJECTS_CONTAINER         – Container name (e.g. loan-applications)
+# AZURE_STORAGE_CONNECTION_STRING   – Full Blob Storage connection string
+# AZURE_STORAGE_CONTAINER_NAME      – Blob container name
+# FRONTEND_URL                      – Deployed SWA URL (for CORS on the backend)
+#
+# SWA_DEPLOYMENT_TOKEN  – From: az staticwebapp secrets list
+#                          --name lfa-frontend --resource-group rg-shared-bluebolt
+#                          --query properties.apiKey --output tsv
+# VITE_API_BASE_URL     – Backend API base URL baked into the React build
+#                          e.g. https://lfa-backend-api.azurewebsites.net/api
+#
+# No Azure service principal is required for deployment.
+# The backend image is pushed to ACR and the App Service CD webhook URL is
+# POSTed to trigger an immediate pull of the new :latest image.
+# ─────────────────────────────────────────────────────────────────────────────
+
+jobs:
+  build-push-deploy:
+    name: Build, Push & Deploy All Images
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Container registry login ────────────────────────────────────────────
+      - name: Login to ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      # ── Backend: build & push Docker image ─────────────────────────────────
+      - name: Build & push backend
+        run: |
+          IMAGE=${{ secrets.ACR_LOGIN_SERVER }}/lfa-backend
+          docker build -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:latest" ./Loan-FraudApp-Backend
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+      # ── Frontend: build React app ───────────────────────────────────────────
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: Loan-Fraud-App-Frontend/package-lock.json
+
+      - name: Install npm dependencies
+        working-directory: Loan-Fraud-App-Frontend
+        run: npm ci
+
+      - name: Build React app (production)
+        working-directory: Loan-Fraud-App-Frontend
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+        run: npm run build
+
+      # ── Trigger deployments ─────────────────────────────────────────────────
+      - name: Trigger backend Web App deployment
+        run: |
+          curl -s -o /dev/null -w "Backend deploy: %{http_code}\n" -X POST "${{ secrets.BACKEND_CD_URL }}"
+
+      - name: Deploy frontend to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          # Point to source dir; output_location is relative to app_location
+          app_location: Loan-Fraud-App-Frontend
+          output_location: dist
+          # Skip the built-in Oryx build – we already ran npm run build above
+          skip_app_build: true

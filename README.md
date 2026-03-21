@@ -542,6 +542,121 @@ This formula ensures that a single very high-risk signal (e.g. a clear fraud rin
 
 ---
 
+## Deploying to Azure
+
+Two PowerShell scripts at the workspace root handle full end-to-end deployment. No GitHub Actions or CI/CD pipeline required — everything is deployed directly from your machine.
+
+| Resource | Tier | Est. Cost |
+|---|---|---|
+| **Azure Web App** (backend) | B1 Linux | ~$13 / month |
+| **Azure Static Web Apps** (frontend) | Free | $0 / month |
+
+### Prerequisites
+
+Ensure the following are installed and available in your PATH:
+
+- [Azure CLI](https://aka.ms/installazurecliwindows) — run `az --version` to verify
+- [Node.js 20+](https://nodejs.org/) — for building the frontend and SWA CLI
+- Azure CLI logged in — `az login`
+
+---
+
+### Step 1 — Configure the backend script
+
+Open [deploy-backend.ps1](deploy-backend.ps1) and fill in the **`== CONFIGURATION ==`** block near the top:
+
+```powershell
+$RESOURCE_GROUP = "LoanFraudRG"
+$LOCATION       = "eastus"
+$APP_NAME       = "loan-fraud-api"        # ← must be globally unique
+
+$AZURE_AI_PROJECT_ENDPOINT      = "https://your-project.services.ai.azure.com"
+$AZURE_AI_MODEL_DEPLOYMENT_NAME = "gpt-4o"
+$COSMOS_DB_URL                  = "https://your-cosmos.documents.azure.com:443/"
+$COSMOS_DB_KEY                  = "your-cosmos-primary-key"
+# ... (see script for all variables)
+```
+
+Leave `$FRONTEND_URL` as-is for the first run — you'll update it after deploying the frontend.
+
+### Step 2 — Deploy the backend
+
+```powershell
+.\deploy-backend.ps1
+```
+
+This script:
+1. Creates the Resource Group (B1 Linux App Service Plan)
+2. Creates the Python 3.11 Web App
+3. Configures all environment variables as App Settings
+4. Enables System-Assigned Managed Identity
+5. Packages the code (excluding `.env` and `__pycache__`) and deploys via zip
+
+> **Note on authentication:** The deployed app uses `DefaultAzureCredential` which, with Managed Identity enabled, authenticates to Azure AI Foundry, Cosmos DB, and Blob Storage automatically.  
+> Grant the identity the following RBAC roles in the Azure Portal:
+> - **Azure AI Foundry** → `Azure AI Developer`
+> - **Cosmos DB account** → `Cosmos DB Built-in Data Contributor`
+> - **Storage account** → `Storage Blob Data Contributor`
+>
+> Alternatively, set `$AZURE_CLIENT_ID`, `$AZURE_CLIENT_SECRET`, and `$AZURE_TENANT_ID` in the script to use a Service Principal.
+
+### Step 3 — Configure the frontend script
+
+Open [deploy-frontend.ps1](deploy-frontend.ps1) and set `$BACKEND_URL` to your deployed backend URL:
+
+```powershell
+$BACKEND_URL = "https://loan-fraud-api.azurewebsites.net"
+$SWA_NAME    = "loan-fraud-frontend"   # ← must be globally unique
+```
+
+### Step 4 — Deploy the frontend
+
+```powershell
+.\deploy-frontend.ps1
+```
+
+This script:
+1. Writes `.env.production` with `VITE_API_BASE_URL` pointing to your backend
+2. Runs `npm run build` to produce the optimised `dist/` bundle
+3. Creates the **free-tier** Azure Static Web App resource  
+4. Retrieves the deployment token automatically
+5. Installs the SWA CLI if not already installed
+6. Deploys the `dist/` folder with SPA routing enabled (`staticwebapp.config.json`)
+
+### Step 5 — Update CORS
+
+After the frontend deployment, you'll see output like:
+
+```
+Frontend URL: https://random-name.azurestaticapps.net
+NEXT STEP: Update $FRONTEND_URL in deploy-backend.ps1
+```
+
+Update `$FRONTEND_URL` in `deploy-backend.ps1` to the frontend URL and re-run the script. This updates the `CORS_ORIGINS` App Setting on the backend so the browser can call the API.
+
+### Re-deploying after code changes
+
+- **Backend only**: Re-run `.\deploy-backend.ps1` — it re-deploys the zip.
+- **Frontend only**: Re-run `.\deploy-frontend.ps1` — it rebuilds and re-deploys.
+
+### Useful post-deployment commands
+
+```powershell
+# Stream backend logs
+az webapp log tail --name loan-fraud-api --resource-group LoanFraudRG
+
+# Restart the backend
+az webapp restart --name loan-fraud-api --resource-group LoanFraudRG
+
+# SSH into the backend container
+az webapp ssh --name loan-fraud-api --resource-group LoanFraudRG
+
+# Delete all Azure resources (⚠ destructive)
+az group delete --name LoanFraudRG --yes
+```
+
+---
+
 ## Security Notes
 
 - CORS is configured to allow all origins (`*`) for development. Update `allow_origins` in `main.py` with specific frontend domains before deploying to production.
