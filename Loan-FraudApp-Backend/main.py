@@ -57,7 +57,7 @@ logging.getLogger("azure.cosmos._cosmos_http_logging_policy").setLevel(logging.W
 global_orchestrator: Optional[AgentOrchestrator] = None
 
 
-async def initialize_agent_service():
+async def initialize_agent_service(): 
     """Initialize the agent orchestrator at application startup"""
     global global_orchestrator
     try:
